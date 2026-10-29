@@ -174,6 +174,28 @@
     CL_RECA_RS_SERVICES: 'no hay sustituto directo; resuelve la lógica sin ella.'
   };
 
+  /*
+   * Lista oficial de SAP (Cloudification Repository, github.com/SAP/abap-atc-cr-cv-s4hc), opcional.
+   * La web la carga con CleanCore.setSapList(datos). Sin ella, las reglas usan las listas de arriba.
+   * Formato compacto por nombre: "tipo|PCE|Public|BTP|clasificación|sucesores", varios tipos separados por ";".
+   */
+  let SAP_LIST = null;
+  let SAP_META = null;
+  // null: lista no cargada · undefined: lista cargada y el objeto no está (no liberado)
+  function sapInfo(name, kinds) {
+    if (!SAP_LIST) return null;
+    const raw = SAP_LIST[name];
+    if (!raw) return undefined;
+    for (const e of raw.split(';')) {
+      const [tipo, pce, pub, btp, cls, suc] = e.split('|');
+      if (kinds.includes(tipo)) return { tipo, pce, pub, btp, cls, suc: suc ? suc.split(',') : [] };
+    }
+    return undefined;
+  }
+  const releasedFor = (info, target) => !!info && (target === 'btp' ? info.btp : target === 's4pub' ? info.pub : info.pce) === 'R';
+  const successorText = info => (info && info.suc.length ? ` Sucesor que indica SAP: ${info.suc.slice(0, 3).join(', ')}.` : '');
+  const OFFICIAL = 'no está liberado para ABAP Cloud según la lista oficial de SAP.';
+
   const S = { error: 'error', warning: 'warning', info: 'info' };
   const CAT = {
     cloud: 'Preparado para Cloud',
@@ -361,17 +383,22 @@
     { id: 'CLD-002', cat: 'cloud', sev: S.error, cloud: true, title: 'Acceso directo a tabla estándar de SAP',
       why: 'En ABAP Cloud (y en el modelo clean core) no se leen tablas de SAP directamente: se usan vistas CDS liberadas (released, contrato C1). Así el código sobrevive a las actualizaciones.',
       before: 'SELECT FROM mara FIELDS matnr, mtart ...', after: 'SELECT FROM I_Product FIELDS Product, ProductType ...',
-      test: s => {
+      test: (s, parsed) => {
         if (!/^(SELECT|OPEN\s+CURSOR|WITH)\b/.test(s.upper) && !/\bJOIN\b/.test(s.upper)) return false;
         const found = [];
         const re = /\b(?:FROM|JOIN)\s+([A-Z0-9_\/]+)/g;
         let m;
         while ((m = re.exec(s.upper))) {
           const t = m[1];
-          if (RELEASED[t] || OTHER_SAP_TABLES.includes(t)) found.push(t);
+          if (/^[ZY]/.test(t) || t.startsWith('/')) continue;
+          const info = sapInfo(t, ['TABL', 'DDLS']);
+          // Con la lista oficial: todo lo que no esté liberado para el destino (lo que no aparece, tampoco lo está)
+          if (info === null ? (RELEASED[t] || OTHER_SAP_TABLES.includes(t)) : !releasedFor(info, parsed.target)) found.push({ t, info });
         }
         if (!found.length) return false;
-        const t = found[0];
+        const { t, info } = found[0];
+        const fallback = RELEASED[t] ? ` Usa la vista liberada ${RELEASED[t]}.` : ' Busca su vista CDS liberada en el SAP Business Accelerator Hub.';
+        if (info !== null) return { detail: `${t} ${OFFICIAL}${successorText(info) || fallback}` };
         return { detail: RELEASED[t] ? `${t}: usa la vista liberada ${RELEASED[t]}.` : `${t}: busca su vista CDS liberada en el SAP Business Accelerator Hub o en el Cloudification Repository.` };
       } },
     { id: 'CLD-003', cat: 'cloud', sev: S.error, cloud: true, title: 'Interfaz SAP GUI (WRITE, dynpros, ALV clásico, pantallas de selección)',
@@ -389,13 +416,18 @@
     { id: 'CLD-006', cat: 'cloud', sev: S.warning, cloud: true, title: 'Módulo de función no liberado',
       why: 'La mayoría de módulos de función, incluidas las BAPIs, no están liberados para ABAP Cloud. Comprueba su estado en el Cloudification Repository y usa el BO RAP o la clase liberada equivalente.',
       before: "CALL FUNCTION 'BAPI_PO_CREATE1' ...", after: "MODIFY ENTITIES OF i_purchaseordertp_2\n  ENTITY purchaseorder CREATE FIELDS ( ... ) WITH ...",
-      test: s => {
+      test: (s, parsed) => {
         const m = s.upper.match(/^CALL\s+FUNCTION\s+'(_+)'/);
         if (!m) return false;
         const name = (s.rawText.match(/CALL\s+FUNCTION\s+'([^']+)'/i) || [])[1];
         if (!name) return true;
         const u = name.toUpperCase();
         if (/^Z|^Y/.test(u)) return false;
+        const info = sapInfo(u, ['FUNC']);
+        if (info !== null) {
+          if (releasedFor(info, parsed.target)) return false;
+          return { detail: `${u} ${OFFICIAL}${successorText(info)}${FM_ALT[u] ? ' ' + FM_ALT[u] : ''}` };
+        }
         return { detail: FM_ALT[u] ? `${u}: ${FM_ALT[u]}` : `${u}: comprueba si está liberado; si no, busca la API sustituta.` };
       } },
     { id: 'CLD-007', cat: 'cloud', sev: S.error, cloud: true, title: 'EXPORT/IMPORT MEMORY, SET/GET PARAMETER',
@@ -407,9 +439,21 @@
       before: "MODIFY ENTITIES OF zr_order ... .\nCOMMIT WORK.", after: "MODIFY ENTITIES OF zr_order ... .\nCOMMIT ENTITIES RESPONSE OF zr_order FAILED DATA(ls_failed) REPORTED DATA(ls_reported).",
       test: s => /^(COMMIT|ROLLBACK)\s+WORK\b/.test(s.upper) },
     { id: 'CLD-010', cat: 'cloud', sev: S.error, cloud: true, title: 'Clase de SAP no liberada',
-      why: 'En ABAP Cloud solo se pueden usar clases liberadas. Estas tienen sustituta directa.',
+      why: 'En ABAP Cloud solo se pueden usar clases e interfaces liberadas por SAP. Con la lista oficial cargada se comprueba cada una; sin ella, solo las que tienen sustituta directa conocida.',
       before: "cl_http_client=>create_by_url( EXPORTING url = lv_url IMPORTING client = lo_client ).", after: "DATA(lo_client) = cl_web_http_client_manager=>create_by_http_destination(\n  cl_http_destination_provider=>create_by_url( lv_url ) ).",
-      test: s => {
+      test: (s, parsed) => {
+        if (SAP_LIST) {
+          // Clases e interfaces de SAP usadas en la sentencia. SAP GUI y ficheros ya los marcan CLD-003 y CLD-004.
+          const re = /\b((?:CL|CX|IF)_[A-Z0-9_]+)\s*(?:=>|\()|\bTYPE\s+REF\s+TO\s+((?:CL|CX|IF)_[A-Z0-9_]+)|\b(?:NEW|CAST|INHERITING\s+FROM|INTERFACES)\s+((?:CL|CX|IF)_[A-Z0-9_]+)/g;
+          let m;
+          while ((m = re.exec(s.upper))) {
+            const n = m[1] || m[2] || m[3];
+            if (/^CL_(GUI|SALV)_/.test(n)) continue;
+            const info = sapInfo(n, ['CLAS', 'INTF']);
+            if (!releasedFor(info, parsed.target)) return { detail: `${n} ${OFFICIAL}${CLASS_ALT[n] ? ' Alternativa: ' + CLASS_ALT[n] : successorText(info)}` };
+          }
+          return false;
+        }
         const m = s.upper.match(/\b(CL_HTTP_CLIENT|CL_REST_HTTP_CLIENT|CL_BCS|CL_DOCUMENT_BCS|CL_SAPUSER_BCS|CL_CAM_ADDRESS_BCS|CL_FDT_XL_SPREADSHEET|CL_RECA_RS_SERVICES)\b/);
         return m ? { detail: `${m[1]}: ${CLASS_ALT[m[1]]}` } : false;
       } },
@@ -777,6 +821,7 @@
     const target = resolveTarget((opts || {}).target);
     const disabled = new Set((opts || {}).disabled || []);
     const parsed = splitStatements(source);
+    parsed.target = target;
     const ctx = buildContext(parsed);
     const findings = [];
 
@@ -911,5 +956,12 @@
     return L.join('\n');
   }
 
-  root.CleanCore = { analyze, modernize, toMarkdown, RULES, CAT, TARGETS, ruleSeverity, splitStatements };
+  // Carga la lista oficial de SAP (objeto { meta, objetos } de sap-apis.json). null la descarga.
+  function setSapList(data) {
+    SAP_LIST = data && data.objetos ? data.objetos : null;
+    SAP_META = SAP_LIST ? data.meta || {} : null;
+  }
+  const sapList = () => SAP_META;
+
+  root.CleanCore = { analyze, modernize, toMarkdown, RULES, CAT, TARGETS, ruleSeverity, splitStatements, setSapList, sapList, sapInfo };
 })(typeof window !== 'undefined' ? window : globalThis);

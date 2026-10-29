@@ -2,7 +2,8 @@
 //  1. analizarBase: lo costoso y que solo depende del código y del destino (reglas, referencias, niveles, dependencias).
 //  2. evaluar: uso, decisiones, esfuerzo y resumen. Es instantáneo, así que se repite cada vez que el usuario
 //     cambia un supuesto o una regla de decisión.
-import type { Analisis, Decision, Destino, EstadoUso, Hallazgo, Nivel, ObjetoZ, Opciones, Partida, ResultadoObjeto, Resumen, Supuesto, UsoSap } from '../tipos';
+import type { Analisis, Decision, Destino, EstadoUso, GrupoDuplicadoResultado, Hallazgo, Nivel, ObjetoZ, Opciones, Partida, ResultadoObjeto, Resumen, Supuesto, UsoSap } from '../tipos';
+import type { GrupoDuplicado } from './duplicados';
 import type { DatosUso } from '../entrada/uso';
 import { CleanCore } from './motor';
 import { referenciasDe, esPropio } from './referencias';
@@ -44,7 +45,7 @@ export function analizarBase(objetos: ObjetoZ[], base: BaseSap, destino: Destino
       nota = r.score;
       lineas = r.lines;
       lineasCodigo = r.codeLines;
-      hallazgos = r.findings.map((f) => ({ regla: f.rule, categoria: f.cat, severidad: f.sev, titulo: f.title, linea: f.line, detalle: f.detail }));
+      hallazgos = r.findings.map((f) => ({ regla: f.rule, categoria: f.cat, severidad: f.sev, titulo: f.title, linea: f.line, detalle: f.detail, correccion: f.after }));
     }
     if (o.tipo === 'TABL') lineas = lineasCodigo = 0;
 
@@ -103,7 +104,7 @@ function decidirUso(b: ObjetoBase, uso: DatosUso | null, opciones: Opciones): { 
   return opciones.reglas.ausenteEsSinUso ? { estado: 'sin-uso', ejecuciones: 0 } : { estado: 'desconocido', ejecuciones: null };
 }
 
-export function evaluar(nombre: string, bases: ObjetoBase[], uso: DatosUso | null, opciones: Opciones, datosSap: Resumen['datosSap'], avisos: string[] = []): Analisis {
+export function evaluar(nombre: string, bases: ObjetoBase[], uso: DatosUso | null, opciones: Opciones, datosSap: Resumen['datosSap'], avisos: string[] = [], gruposDuplicados: GrupoDuplicado[] = []): Analisis {
   const { destino, reglas } = opciones;
   const sup = new Map(opciones.supuestos.map((s) => [s.id, s]));
   const porId = new Map(bases.map((b) => [b.objeto.id, b]));
@@ -217,10 +218,28 @@ export function evaluar(nombre: string, bases: ObjetoBase[], uso: DatosUso | nul
     };
   });
 
-  return { nombre, fecha: new Date().toISOString(), opciones, resultados, resumen: resumir(resultados, opciones, uso, datosSap), avisos };
+  // Copias casi iguales: se propone conservar la más usada (o la más grande) y retirar el resto tras unificar.
+  // El ahorro es el esfuerzo de migrar las copias que no se retiran ya por falta de uso.
+  const porIdRes = new Map(resultados.map((r) => [r.objeto.id, r]));
+  const duplicados: GrupoDuplicadoResultado[] = gruposDuplicados
+    .map((g) => {
+      const rs = g.miembros.map((id) => porIdRes.get(id)).filter((r): r is ResultadoObjeto => !!r);
+      const vivos = rs.filter((r) => r.decision !== 'retirar');
+      const principal = [...(vivos.length ? vivos : rs)].sort((x, y) => (y.ejecuciones ?? -1) - (x.ejecuciones ?? -1) || y.lineasCodigo - x.lineasCodigo)[0];
+      const copias = vivos.filter((r) => r !== principal);
+      return {
+        miembros: g.miembros,
+        similitud: g.similitud,
+        principal: principal?.objeto.id || g.miembros[0],
+        ahorro: { min: copias.reduce((t, r) => t + r.esfuerzo.min, 0), max: copias.reduce((t, r) => t + r.esfuerzo.max, 0) },
+      };
+    })
+    .sort((x, y) => y.ahorro.max - x.ahorro.max || y.miembros.length - x.miembros.length);
+
+  return { nombre, fecha: new Date().toISOString(), opciones, resultados, resumen: resumir(resultados, opciones, uso, datosSap, duplicados), duplicados, avisos };
 }
 
-function resumir(rs: ResultadoObjeto[], opciones: Opciones, uso: DatosUso | null, datosSap: Resumen['datosSap']): Resumen {
+function resumir(rs: ResultadoObjeto[], opciones: Opciones, uso: DatosUso | null, datosSap: Resumen['datosSap'], duplicados: GrupoDuplicadoResultado[]): Resumen {
   const porDecision = { retirar: 0, mantener: 0, adaptar: 0, rehacer: 0 } as Record<Decision, number>;
   const porNivel = { A: 0, B: 0, C: 0, D: 0 } as Record<Nivel, number>;
   const porTipo: Record<string, number> = {};
@@ -281,5 +300,11 @@ function resumir(rs: ResultadoObjeto[], opciones: Opciones, uso: DatosUso | null
     tieneUso: !!uso,
     periodoUso: uso?.desde && uso?.hasta ? `${uso.desde} a ${uso.hasta}` : undefined,
     datosSap,
+    duplicados: {
+      grupos: duplicados.filter((g) => g.ahorro.max > 0).length,
+      objetos: duplicados.reduce((t, g) => t + g.miembros.length, 0),
+      min: duplicados.reduce((t, g) => t + g.ahorro.min, 0) / h,
+      max: duplicados.reduce((t, g) => t + g.ahorro.max, 0) / h,
+    },
   };
 }

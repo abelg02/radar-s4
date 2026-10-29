@@ -1,6 +1,8 @@
 // Conclusiones y datos que faltan, redactados a partir de los resultados. Sin cifras que no salgan del análisis.
 import type { Analisis } from '../tipos';
 import { DESTINOS, num, pct, rango } from '../ui/util';
+import { calendario, FIN_ECC } from '../esfuerzo/calendario';
+import { fechaCorta } from '../ui/graficos';
 
 export function conclusiones(a: Analisis): string[] {
   const r = a.resumen;
@@ -20,6 +22,9 @@ export function conclusiones(a: Analisis): string[] {
   if (nd) out.push(`${num(nd)} objetos están en nivel D de clean core (escriben en tablas de SAP, usan objetos "noAPI" o amplían código estándar): son el principal riesgo en cada actualización.`);
   const top = r.topSap.find((s) => s.nivel !== 'A');
   if (top) out.push(`El objeto de SAP no liberado más usado es ${top.nombre}, en ${num(top.objetos)} objetos Z${top.sucesores.length ? `; SAP indica como sucesor ${top.sucesores.slice(0, 2).join(' o ')}` : ''}.`);
+  const d = r.duplicados;
+  if (d.grupos) out.push(`${num(d.objetos)} objetos forman ${num(a.duplicados.length)} grupo(s) de código casi duplicado: unificar las copias antes de migrar ahorraría entre ${rango(d.min, d.max)} jornadas.`);
+  out.push(veredictoCalendario(calendario(r, a.opciones.equipo), a.opciones.equipo.personas));
   return out;
 }
 
@@ -32,3 +37,14 @@ export function datosQueFaltan(a: Analisis): string[] {
   out.push('Modificaciones del estándar (SPAU/SPDD) y personalización: no forman parte del código exportado con abapGit.');
   return out;
 }
+
+/** Frase con el resultado del calendario, sin cifras que no salgan del cálculo. */
+export function veredictoCalendario(cal: ReturnType<typeof calendario>, personas: number): string {
+  if (!cal.fases.length) return 'No hay trabajo que planificar.';
+  const fin = `Con ${personas} persona${personas === 1 ? '' : 's'}, el trabajo termina entre el ${fechaCorta(cal.finMin)} y el ${fechaCorta(cal.finMax)}.`;
+  if (cal.llega) return `${fin} Llega antes del fin del mantenimiento estándar de ECC (${fechaCorta(FIN_ECC)}).`;
+  const necesarias = cal.personasNecesarias ? ` Para llegar también en el caso pesimista harían falta unas ${cal.personasNecesarias} personas con la misma dedicación.` : '';
+  if (cal.llegaJusto) return `${fin} Solo llega a tiempo en el caso optimista.${necesarias}`;
+  return `${fin} No llega antes del fin del mantenimiento estándar de ECC (${fechaCorta(FIN_ECC)}).${necesarias}`;
+}
+

@@ -12,11 +12,12 @@ export interface ResultadoMotor {
   score: number;
   codeLines: number;
   lines: number;
-  findings: { rule: string; cat: string; catLabel: string; sev: 'error' | 'warning' | 'info'; title: string; line: number; detail: string }[];
+  findings: { rule: string; cat: string; catLabel: string; sev: 'error' | 'warning' | 'info'; title: string; line: number; detail: string; after?: string }[];
 }
 
 interface Motor {
   analyze(source: string, opts: { target: string; disabled?: string[] }): ResultadoMotor;
+  modernize(source: string, opts: { target: string }): { code: string; changes: { line: number; rule: string; from: string; to: string }[] };
   splitStatements(source: string): { lines: string[]; statements: Sentencia[] };
   RULES: { id: string; cat: string; title: string; sev: string }[];
   CAT: Record<string, string>;

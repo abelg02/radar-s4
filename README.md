@@ -11,6 +11,9 @@ Subes el código exportado con abapGit y, si lo tienes, el uso real de SUSG o SC
 - Gratis, sin registro y sin servidor: el código no sale de tu navegador.
 - Cruza cada objeto con el [Cloudification Repository](https://github.com/SAP/abap-atc-cr-cv-s4hc) de SAP, la misma lista que usa el ATC. Se actualiza sola cada semana.
 - Usa las 72 reglas de [CleanCore Check](https://abelg02.github.io/Proyecto-SAP-ABAP/herramientas/cleancore-check.html) para S/4HANA on-premise, Private Edition y Public Edition.
+- Propuesta de cambio por objeto: corrección automática de la sintaxis segura y lista de cambios manuales con el sucesor que indica SAP. Descarga del repositorio corregido en ZIP, listo para abapGit.
+- Código casi duplicado: detecta copias (ZR_VENTAS, ZR_VENTAS_2…) y calcula lo que se ahorra unificándolas antes de migrar.
+- Calendario: con tu equipo y fecha de inicio, cuándo termina cada fase y si llegas antes del fin del mantenimiento estándar de ECC.
 - Informe ejecutivo en PDF de 5 páginas y plan de trabajo en CSV para Excel o Jira.
 
 ## Qué hace
@@ -22,6 +25,8 @@ Subes el código exportado con abapGit y, si lo tienes, el uso real de SUSG o SC
 | Objetos de SAP | Tablas, funciones, clases, transacciones y autorizaciones de SAP que usa cada objeto: liberado (A), classic API (B), interno (C) o "noAPI" y escrituras directas (D), con el sucesor que indica SAP. |
 | Dependencias y uso | Grafo de qué objeto usa a cuál, cruzado con SUSG o SCMON. Nada se retira si algo que se queda lo necesita. |
 | Esfuerzo | Horas por decisión y por cambio, editables. Rango en jornadas, análisis de sensibilidad y plan en cuatro fases. |
+| Duplicados | Secuencias de sentencias comparadas con el índice de Jaccard (70 % o más), sin comentarios ni textos. |
+| Calendario | Días laborables, fases una detrás de otra, rango optimista y pesimista, y personas necesarias para llegar a finales de 2027. |
 
 ## Capturas
 

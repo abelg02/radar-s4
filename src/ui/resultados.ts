@@ -2,18 +2,21 @@
 import type { Decision, Destino, Nivel, ResultadoObjeto } from '../tipos';
 import type { Estado } from '../main';
 import { cambiarDestino, guardarOpciones, recalcular, volverAlInicio } from '../main';
-import { conclusiones, datosQueFaltan } from '../informe/conclusiones';
+import { conclusiones, datosQueFaltan, veredictoCalendario } from '../informe/conclusiones';
 import { csvPlan, markdown } from '../informe/exportar';
 import { imprimirInforme } from '../informe/informe';
 import { SUPUESTOS_POR_DEFECTO, REGLAS_POR_DEFECTO } from '../esfuerzo/supuestos';
-import { barraApilada, barrasRango, mapaRiesgo } from './graficos';
+import { propuestaObjeto, zipCorregido } from '../analisis/propuesta';
+import { calendario } from '../esfuerzo/calendario';
+import { barraApilada, barrasRango, gantt, mapaRiesgo } from './graficos';
 import { $, $$, CATEGORIAS, DECISIONES, DESTINOS, NIVELES, ORDEN_DECISION, USOS, dec, descargar, esc, num, pct, rango, tipo } from './util';
 
 const PESTANAS = [
   ['resumen', 'Resumen'],
   ['objetos', 'Objetos'],
   ['mapa', 'Mapa de riesgo'],
-  ['plan', 'Plan por fases'],
+  ['plan', 'Plan y calendario'],
+  ['duplicados', 'Duplicados'],
   ['sap', 'Objetos de SAP'],
   ['supuestos', 'Supuestos y reglas'],
 ] as const;
@@ -41,6 +44,7 @@ export function pintarResultados(estado: Estado, pestana?: string) {
         </label>
         <button class="boton" id="pdf" type="button">Informe PDF</button>
         <button class="boton secundario" id="csv" type="button">Plan en CSV</button>
+        <button class="boton secundario" id="zip" type="button" title="El repositorio con las correcciones de sintaxis seguras aplicadas, para importarlo con abapGit">Código corregido (ZIP)</button>
         <button class="boton secundario" id="md" type="button">Copiar resumen</button>
       </div>
     </div>
@@ -54,6 +58,18 @@ export function pintarResultados(estado: Estado, pestana?: string) {
   $('#destino').addEventListener('change', (e) => cambiarDestino((e.target as HTMLSelectElement).value as Destino));
   $('#pdf').addEventListener('click', () => imprimirInforme(a));
   $('#csv').addEventListener('click', () => descargar(`radar-s4-plan-${a.nombre.replace(/[^\w-]+/g, '_')}.csv`, csvPlan(a)));
+  $('#zip').addEventListener('click', () => {
+    const { zip, archivosCambiados, cambios } = zipCorregido(a, estado.archivos);
+    const url = URL.createObjectURL(new Blob([zip as BlobPart], { type: 'application/zip' }));
+    const enlace = Object.assign(document.createElement('a'), { href: url, download: `radar-s4-corregido-${a.nombre.replace(/[^\w-]+/g, '_')}.zip` });
+    document.body.append(enlace);
+    enlace.click();
+    enlace.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const b = $('#zip');
+    b.textContent = `${num(cambios)} cambios en ${num(archivosCambiados)} archivos`;
+    setTimeout(() => (b.textContent = 'Código corregido (ZIP)'), 3000);
+  });
   $('#md').addEventListener('click', async (e) => {
     const b = e.currentTarget as HTMLButtonElement;
     try { await navigator.clipboard.writeText(markdown(a)); b.textContent = 'Copiado'; } catch { descargar('radar-s4-resumen.md', markdown(a), 'text/markdown'); }
@@ -69,7 +85,7 @@ export function pintarResultados(estado: Estado, pestana?: string) {
 
 function pintarPestana(estado: Estado) {
   const c = $('#contenido');
-  const pintores: Record<Pestana, (e: Estado, c: HTMLElement) => void> = { resumen, objetos, mapa, plan, sap, supuestos };
+  const pintores: Record<Pestana, (e: Estado, c: HTMLElement) => void> = { resumen, objetos, mapa, plan, duplicados, sap, supuestos };
   pintores[actual](estado, c);
 }
 
@@ -176,11 +192,21 @@ function detalle(estado: Estado, id: string) {
   const lineasMarcadas = new Map<number, string[]>();
   for (const h of r.hallazgos) lineasMarcadas.set(h.linea, [...(lineasMarcadas.get(h.linea) || []), `${h.regla} ${h.titulo}`]);
   for (const s of r.sap) for (const l of s.lineas) if (s.nivel !== 'A') lineasMarcadas.set(l, [...(lineasMarcadas.get(l) || []), `${s.nombre}: nivel ${s.nivel}`]);
-  const fuente = r.objeto.tipo === 'TABL' ? '' : r.objeto.fuente;
-  const codigo = fuente ? fuente.split(/\r?\n/).slice(0, 3000).map((l, i) => {
+  const prop = propuestaObjeto(r, a.opciones.destino);
+  const cambiadas = new Map(prop.cambios.map((c) => [c.linea, c]));
+  const pintarCodigo = (texto: string, propuesto: boolean) => texto ? texto.split(/\r?\n/).slice(0, 3000).map((l, i) => {
     const marca = lineasMarcadas.get(i + 1);
-    return `<span class="ln${marca ? ' marcada' : ''}" id="l-${i + 1}"${marca ? ` title="${esc(marca.join(' · '))}"` : ''}><i>${i + 1}</i>${esc(l) || ' '}</span>`;
+    const cambio = propuesto ? cambiadas.get(i + 1) : undefined;
+    const clase = cambio ? ' cambiada' : marca ? ' marcada' : '';
+    const titulo = cambio ? `Corregido (${cambio.regla}). Antes: ${cambio.de}` : marca ? marca.join(' · ') : '';
+    return `<span class="ln${clase}" id="l-${i + 1}"${titulo ? ` title="${esc(titulo)}"` : ''}><i>${i + 1}</i>${esc(l) || ' '}</span>`;
   }).join('') : '';
+  const codigo = pintarCodigo(prop.original, false);
+  const propuestaHtml = r.decision === 'retirar' || (!prop.cambios.length && !prop.manuales.length) ? '' : `
+    <h3>Propuesta de cambio</h3>
+    <p class="tenue">${num(prop.cambios.length)} corrección(es) automática(s) de sintaxis segura · ${num(prop.manuales.length)} cambio(s) que requieren decisión.</p>
+    ${prop.cambios.length ? `<table class="tabla compacta cambios"><tbody>${prop.cambios.slice(0, 40).map((c) => `<tr><td><a href="#l-${c.linea}" data-linea="${c.linea}">${c.linea}</a></td><td><code class="antes">${esc(c.de)}</code><br><code class="despues">${esc(c.a)}</code></td></tr>`).join('')}</tbody></table>` : ''}
+    ${prop.manuales.length ? `<table class="tabla compacta"><tbody>${prop.manuales.slice(0, 40).map((m) => `<tr><td>${m.linea ? `<a href="#l-${m.linea}" data-linea="${m.linea}">${m.linea}</a>` : ''}</td><td><b>${esc(m.titulo)}</b>${m.detalle ? `<br><span class="tenue">${esc(m.detalle)}</span>` : ''}${m.ejemplo ? `<pre class="ejemplo">${esc(m.ejemplo)}</pre>` : ''}</td></tr>`).join('')}</tbody></table>` : ''}`;
   const enlace = (zid: string) => {
     const [t, n] = zid.split(':');
     return `<button class="enlace" data-obj="${esc(zid)}" type="button">${esc(n)}</button> <span class="tenue">${esc(tipo(t))}</span>`;
@@ -196,13 +222,19 @@ function detalle(estado: Estado, id: string) {
   <div class="detalle-cuerpo">
     <p><span class="chip" style="--c:${DECISIONES[r.decision].color}">${DECISIONES[r.decision].nombre}</span> <span class="nivel" style="--c:${NIVELES[r.nivel].color}">${r.nivel}</span> · ${r.ejecuciones !== null ? `${num(r.ejecuciones)} ejecuciones${r.ultimaEjecucion ? `, última el ${esc(r.ultimaEjecucion)}` : ''}` : USOS[r.uso]} · ${dec(r.esfuerzo.min)}–${dec(r.esfuerzo.max)} horas${r.nota !== null ? ` · nota CleanCore ${r.nota}/100` : ''}</p>
     <h3>Por qué</h3><ul>${r.motivos.map((m) => `<li>${esc(m)}</li>`).join('')}</ul>
+    ${propuestaHtml}
     ${r.sap.length ? `<h3>Objetos de SAP que usa</h3><table class="tabla compacta"><tbody>${r.sap.map((s) => `<tr><td><span class="nivel" style="--c:${NIVELES[s.nivel].color}">${s.nivel}</span></td><td><b>${esc(s.nombre)}</b> <span class="tenue">línea ${s.lineas.slice(0, 5).map((l) => `<a href="#l-${l}" data-linea="${l}">${l}</a>`).join(', ')}</span><br><span class="tenue">${esc(s.motivo)}</span>${s.sucesores.length ? `<br>Sucesor: <b>${esc(s.sucesores.slice(0, 4).join(', '))}</b>` : ''}</td></tr>`).join('')}</tbody></table>` : ''}
     ${r.hallazgos.length ? `<h3>Hallazgos de CleanCore Check</h3><table class="tabla compacta"><tbody>${r.hallazgos.slice(0, 60).map((h) => `<tr><td><a href="#l-${h.linea}" data-linea="${h.linea}">${h.linea}</a></td><td><b>${esc(h.titulo)}</b> <span class="tenue">${esc(h.regla)} · ${esc(CATEGORIAS[h.categoria] || h.categoria)}</span>${h.detalle ? `<br><span class="tenue">${esc(h.detalle)}</span>` : ''}</td></tr>`).join('')}</tbody></table>${r.hallazgos.length > 60 ? `<p class="tenue">y ${r.hallazgos.length - 60} más.</p>` : ''}` : ''}
     ${r.usa.length || r.usadoPor.length ? `<h3>Dependencias</h3><div class="dos-col"><div><b>Usa</b><ul class="lista">${r.usa.map((x) => `<li>${enlace(x)}</li>`).join('') || '<li class="tenue">Ningún objeto Z</li>'}</ul></div><div><b>Lo usan</b><ul class="lista">${r.usadoPor.map((x) => `<li>${enlace(x)}</li>`).join('') || '<li class="tenue">Ningún objeto del repositorio</li>'}</ul></div></div>` : ''}
     <h3>Esfuerzo</h3><table class="tabla compacta"><tbody>${r.esfuerzo.partidas.map((p) => `<tr><td>${esc(nombres.get(p.supuesto) || p.supuesto)}${p.veces > 1 ? ` × ${p.veces}` : ''}</td><td class="num">${dec(p.min)}–${dec(p.max)} h</td></tr>`).join('')}</tbody></table>
-    ${codigo ? `<h3>Código</h3><pre class="codigo">${codigo}</pre>` : ''}
+    ${codigo ? `<div class="cab-codigo"><h3>Código</h3>${prop.cambios.length ? `<div class="conmutador" role="group"><button type="button" class="activa" data-ver="original">Original</button><button type="button" data-ver="propuesto">Propuesto (${num(prop.cambios.length)})</button></div><button class="enlace" id="bajar-objeto" type="button">Descargar propuesto</button>` : ''}</div><pre class="codigo" id="codigo">${codigo}</pre>` : ''}
   </div>`;
   $('#cerrar').addEventListener('click', () => (d.hidden = true));
+  $$('[data-ver]', d).forEach((b) => b.addEventListener('click', () => {
+    $$('[data-ver]', d).forEach((x) => x.classList.toggle('activa', x === b));
+    $('#codigo', d).innerHTML = b.dataset.ver === 'propuesto' ? pintarCodigo(prop.propuesto, true) : codigo;
+  }));
+  $('#bajar-objeto', d)?.addEventListener('click', () => descargar(`${r.objeto.nombre.toLowerCase().replace(/\//g, '#')}-propuesto.abap`, prop.propuesto, 'text/plain;charset=utf-8'));
   $$('[data-obj]', d).forEach((b) => b.addEventListener('click', () => detalle(estado, b.dataset.obj!)));
   $$('[data-linea]', d).forEach((l) => l.addEventListener('click', (e) => {
     e.preventDefault();
@@ -237,7 +269,21 @@ function mapa(estado: Estado, c: HTMLElement) {
 // ------------------------------------------------------------------ Plan por fases
 function plan(estado: Estado, c: HTMLElement) {
   const a = estado.analisis!;
-  c.innerHTML = `<div class="fases">${a.resumen.porFase.map((f) => {
+  const eq = a.opciones.equipo;
+  const cal = calendario(a.resumen, eq);
+  c.innerHTML = `
+  <div class="tarjeta calendario">
+    <h2>Calendario hasta el fin de ECC</h2>
+    <div class="equipo">
+      <label>Personas en el equipo<input type="number" id="eq-personas" min="1" max="200" step="1" value="${eq.personas}"></label>
+      <label>Dedicación<select id="eq-dedicacion">${[1, 0.8, 0.6, 0.5, 0.4, 0.25].map((v) => `<option value="${v}" ${eq.dedicacion === v ? 'selected' : ''}>${Math.round(v * 100)} % de la jornada</option>`).join('')}</select></label>
+      <label>Empieza el<input type="date" id="eq-inicio" value="${esc(eq.inicio)}"></label>
+    </div>
+    <p class="veredicto${cal.llega ? '' : ' no'}">${esc(veredictoCalendario(cal, eq.personas))}</p>
+    ${gantt(cal)}
+    <p class="nota">Barra oscura: final optimista (esfuerzo mínimo). Rayada: pesimista (máximo). Días laborables de lunes a viernes, sin festivos ni vacaciones; fases una detrás de otra. El mantenimiento estándar de ECC 6.0 (paquetes de mejora 6 a 8) termina a finales de 2027; después hay mantenimiento ampliado opcional, con coste adicional.</p>
+  </div>
+  <div class="fases">${a.resumen.porFase.map((f) => {
     const objs = a.resultados.filter((r) => r.fase === f.fase).sort((x, y) => y.esfuerzo.max - x.esfuerzo.max);
     const porPaquete = new Map<string, number>();
     for (const o of objs) porPaquete.set(o.objeto.paquete, (porPaquete.get(o.objeto.paquete) || 0) + 1);
@@ -250,6 +296,36 @@ function plan(estado: Estado, c: HTMLElement) {
     </div>`;
   }).join('')}</div>
   <p class="nota">Orden recomendado: retirar antes de convertir (cada objeto que no se migra es trabajo y pruebas que se ahorran), después lo de riesgo bajo y, en paralelo, el diseño de lo que hay que rehacer con clean core. El CSV del plan se importa en Excel o en Jira.</p>
+  <div id="detalle" class="detalle" hidden></div>`;
+  $$('[data-id]', c).forEach((b) => b.addEventListener('click', () => detalle(estado, b.dataset.id!)));
+  const cambiarEquipo = () => {
+    eq.personas = Math.max(1, Math.min(200, Math.round(Number(($('#eq-personas') as HTMLInputElement).value) || 1)));
+    eq.dedicacion = Number(($('#eq-dedicacion') as HTMLSelectElement).value) || 1;
+    eq.inicio = ($('#eq-inicio') as HTMLInputElement).value || eq.inicio;
+    guardarOpciones();
+    recalcular('plan');
+  };
+  ['#eq-personas', '#eq-dedicacion', '#eq-inicio'].forEach((s) => $(s, c).addEventListener('change', cambiarEquipo));
+}
+
+// ------------------------------------------------------------------ Duplicados
+function duplicados(estado: Estado, c: HTMLElement) {
+  const a = estado.analisis!;
+  const porId = new Map(a.resultados.map((r) => [r.objeto.id, r]));
+  const d = a.resumen.duplicados;
+  c.innerHTML = `
+  <div class="tarjeta">
+    <h2>Código casi duplicado</h2>
+    <p class="tenue">Objetos con al menos un 70 % de su lógica igual (secuencias de sentencias, sin comentarios ni textos). Unificarlos antes de migrar ahorra adaptar y probar cada copia. Revisa siempre las diferencias: una copia puede tener un cambio a propósito.</p>
+    ${a.duplicados.length ? `<p class="veredicto">${num(a.duplicados.length)} grupo(s) con ${num(d.objetos)} objetos. Unificar las copias que se migran ahorraría entre ${rango(d.min, d.max)} jornadas.</p>
+    ${a.duplicados.map((g) => `<div class="grupo-dup">
+      <b>${num(g.miembros.length)} objetos · ${Math.round(g.similitud * 100)} % iguales</b>${g.ahorro.max ? ` <span class="tenue">· ahorro ${dec(g.ahorro.min)}–${dec(g.ahorro.max)} h</span>` : ''}
+      <ul>${g.miembros.map((id) => {
+        const r = porId.get(id);
+        if (!r) return '';
+        return `<li><button class="enlace" data-id="${esc(id)}" type="button">${esc(r.objeto.nombre)}</button>${id === g.principal ? '<span class="etiqueta">conservar</span>' : ''} <span class="tenue">${esc(tipo(r.objeto.tipo))} · ${num(r.lineasCodigo)} líneas · ${r.ejecuciones !== null ? `${num(r.ejecuciones)} ejecuciones` : USOS[r.uso]} · ${DECISIONES[r.decision].nombre}</span></li>`;
+      }).join('')}</ul></div>`).join('')}` : '<p>No se han encontrado objetos casi iguales.</p>'}
+  </div>
   <div id="detalle" class="detalle" hidden></div>`;
   $$('[data-id]', c).forEach((b) => b.addEventListener('click', () => detalle(estado, b.dataset.id!)));
 }

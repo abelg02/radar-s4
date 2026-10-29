@@ -234,10 +234,11 @@ const TEMAS = {
 for (const [paq, tema] of Object.entries(TEMAS)) {
   for (const base of tema.nombres) {
     const variantes = entre(2, 4);
+    let primera = null;
     for (let v = 1; v <= variantes; v++) {
       const nombre = `ZR${paq.split('_')[1]}_${base}${v > 1 ? '_' + v : ''}`.slice(0, 30);
       const anio = elegir([2006, 2008, 2009, 2011, 2012, 2014, 2016, 2018, 2019, 2021]);
-      const partes = [`INCLUDE zradar_top_comun.`, `DATA: lt_salida TYPE STANDARD TABLE OF string, ls_salida TYPE string.`, `START-OF-SELECTION.`];
+      let partes = [`INCLUDE zradar_top_comun.`, `DATA: lt_salida TYPE STANDARD TABLE OF string, ls_salida TYPE string.`, `START-OF-SELECTION.`];
       partes.push(elegir(tema.legado)());
       if (azar() < 0.5) partes.push(elegir(tema.legado)());
       if (azar() < 0.35) partes.push(elegir(BAPIS)());
@@ -247,6 +248,9 @@ for (const [paq, tema] of Object.entries(TEMAS)) {
       if (azar() < 0.4) partes.push(`  PERFORM mostrar_alv TABLES lt_salida.\n\nINCLUDE zradar_alv_comun.`);
       else partes.push(elegir(SALIDA_GUI)());
       if (azar() < 0.2) partes.push(`  MOVE lv_valor TO ls_salida.\n  ADD 1 TO lv_contador.\n  REFRESH lt_salida.`);
+      // Lo habitual en las empresas: la variante es una copia de la primera con un pequeño cambio al final
+      if (v > 1 && primera && azar() < 0.45) partes = [...primera, `  " Cambio de la copia ${v}\n  SORT lt_salida.\n  DELETE ADJACENT DUPLICATES FROM lt_salida.`];
+      if (v === 1) primera = partes;
       programa(paq, nombre, anio, partes.join('\n\n'));
     }
   }

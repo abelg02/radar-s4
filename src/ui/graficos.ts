@@ -1,6 +1,53 @@
 // Gráficos en SVG generados a mano: sin librerías, se imprimen igual que se ven.
 import type { ResultadoObjeto } from '../tipos';
+import { FIN_ECC, type Calendario } from '../esfuerzo/calendario';
 import { DECISIONES, esc, num, pct } from './util';
+
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+export const fechaCorta = (s: string) => {
+  const [a, m, d] = s.split('-').map(Number);
+  return `${d} ${MESES[m - 1]} ${a}`;
+};
+
+/**
+ * Calendario por fases: barra oscura hasta el final optimista, rayada hasta el pesimista,
+ * y la línea del fin del mantenimiento estándar de ECC.
+ */
+export function gantt(c: Calendario, ancho = 760): string {
+  if (!c.fases.length) return '<p class="tenue">No hay trabajo que planificar.</p>';
+  const fila = 34;
+  const m = { izq: 240, der: 20, arr: 26, aba: 28 };
+  const alto = m.arr + c.fases.length * fila + m.aba;
+  const t = (s: string) => new Date(`${s}T12:00:00Z`).getTime();
+  const t0 = t(c.inicio);
+  const t1 = Math.max(t(c.finMax), t(FIN_ECC)) + 20 * 864e5;
+  const x = (s: string) => m.izq + ((t(s) - t0) / (t1 - t0)) * (ancho - m.izq - m.der);
+
+  // Marcas cada trimestre
+  const marcas: string[] = [];
+  const d = new Date(t0);
+  d.setUTCDate(1);
+  d.setUTCMonth(Math.ceil((d.getUTCMonth() + 1) / 3) * 3);
+  while (d.getTime() < t1) {
+    const s = d.toISOString().slice(0, 10);
+    marcas.push(`<line x1="${x(s)}" x2="${x(s)}" y1="${m.arr - 6}" y2="${alto - m.aba}" class="rejilla"/><text x="${x(s)}" y="${m.arr - 10}" text-anchor="middle">${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}</text>`);
+    d.setUTCMonth(d.getUTCMonth() + 3);
+  }
+  const barras = c.fases.map((f, i) => {
+    const y = m.arr + i * fila + 8;
+    return `<text x="0" y="${y + 13}" class="titulo-eje">${f.fase}. ${esc(f.nombre)}</text>
+      <rect x="${x(f.inicioMax)}" y="${y}" width="${Math.max(2, x(f.finMax) - x(f.inicioMax))}" height="18" class="pesimista"><title>Pesimista: ${fechaCorta(f.inicioMax)} a ${fechaCorta(f.finMax)}</title></rect>
+      <rect x="${x(f.inicioMin)}" y="${y + 4}" width="${Math.max(2, x(f.finMin) - x(f.inicioMin))}" height="10" class="optimista"><title>Optimista: ${fechaCorta(f.inicioMin)} a ${fechaCorta(f.finMin)}</title></rect>`;
+  }).join('');
+  const xf = x(FIN_ECC);
+  return `<svg class="mapa gantt" viewBox="0 0 ${ancho} ${alto}" width="100%" role="img" aria-label="Calendario por fases">
+    <defs><pattern id="rayas" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#e3e7ea"/><line x1="0" y1="0" x2="0" y2="6" stroke="#9aa5ad" stroke-width="2.5"/></pattern></defs>
+    ${marcas.join('')}
+    ${barras}
+    <line x1="${xf}" x2="${xf}" y1="${m.arr - 6}" y2="${alto - m.aba + 6}" class="limite"/>
+    <text x="${xf - 6}" y="${alto - 6}" text-anchor="end" class="etiqueta-zona">Fin del mantenimiento estándar de ECC 6.0</text>
+  </svg>`;
+}
 
 /** Barra apilada horizontal con leyenda debajo. */
 export function barraApilada(partes: { nombre: string; valor: number; color: string; titulo?: string }[]): string {

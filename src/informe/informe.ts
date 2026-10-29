@@ -1,8 +1,9 @@
 // Informe ejecutivo en 5 páginas A4. Se genera en HTML y el navegador lo guarda como PDF (Imprimir → Guardar como PDF).
 import type { Analisis, ResultadoObjeto } from '../tipos';
-import { barraApilada, barrasRango, mapaRiesgo } from '../ui/graficos';
+import { barraApilada, barrasRango, gantt, mapaRiesgo } from '../ui/graficos';
+import { calendario } from '../esfuerzo/calendario';
 import { CATEGORIAS, DECISIONES, DESTINOS, NIVELES, ORDEN_DECISION, esc, num, pct, rango, tipo } from '../ui/util';
-import { conclusiones, datosQueFaltan } from './conclusiones';
+import { conclusiones, datosQueFaltan, veredictoCalendario } from './conclusiones';
 
 const pie = (n: number) => `<footer class="pag-pie"><span>Generado con Radar S/4 · herramienta gratuita de Abel González Guerra · no afiliado a SAP</span><span>${n} / 5</span></footer>`;
 
@@ -61,6 +62,9 @@ export function htmlInforme(a: Analisis): string {
 
 <section class="pagina">
   <header class="pag-cab"><span class="marca">Radar S/4</span><span>Plan por fases</span></header>
+  <h2>Calendario</h2>
+  <p>${esc(veredictoCalendario(calendario(r, a.opciones.equipo), a.opciones.equipo.personas))} ${Math.round(a.opciones.equipo.dedicacion * 100)} % de dedicación, desde el ${esc(a.opciones.equipo.inicio)}.</p>
+  ${gantt(calendario(r, a.opciones.equipo), 760)}
   <h2>Plan por fases</h2>
   ${barrasRango(r.porFase.map((f) => ({ nombre: `${f.fase}. ${f.nombre}`, min: f.min, max: f.max, nota: `${num(f.objetos)} objetos` })), 'jornadas')}
   ${r.porFase.map((f) => {
@@ -77,6 +81,7 @@ export function htmlInforme(a: Analisis): string {
   <h2>Objetos de SAP no liberados más usados</h2>
   <table class="tabla"><thead><tr><th>Objeto de SAP</th><th>Nivel</th><th class="num">Objetos Z</th><th>Sucesor indicado por SAP</th></tr></thead>
   <tbody>${r.topSap.filter((s) => s.nivel !== 'A').slice(0, 12).map((s) => `<tr><td><b>${esc(s.nombre)}</b></td><td>${s.nivel}</td><td class="num">${num(s.objetos)}</td><td>${s.sucesores.length ? esc(s.sucesores.slice(0, 3).join(', ')) : '<span class="tenue">Sin sucesor en la lista</span>'}</td></tr>`).join('')}</tbody></table>
+  ${a.duplicados.length ? `<h2>Código casi duplicado</h2><table class="tabla"><thead><tr><th>Objetos</th><th class="num">Iguales</th><th class="num">Ahorro si se unifican</th></tr></thead><tbody>${a.duplicados.slice(0, 6).map((g) => `<tr><td>${g.miembros.map((id) => esc(id.split(':')[1])).join(', ')}</td><td class="num">${Math.round(g.similitud * 100)} %</td><td class="num">${num(g.ahorro.min)}–${num(g.ahorro.max)} h</td></tr>`).join('')}</tbody></table>` : ''}
   <h2>Hallazgos de migración y ABAP Cloud</h2>
   <table class="tabla"><thead><tr><th>Regla</th><th>Hallazgo</th><th class="num">Apariciones</th><th class="num">Objetos</th></tr></thead>
   <tbody>${reglas.map(([id, e]) => `<tr><td>${esc(id)}</td><td>${esc(e.titulo)}</td><td class="num">${num(e.n)}</td><td class="num">${num(e.objetos.size)}</td></tr>`).join('')}</tbody></table>

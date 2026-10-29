@@ -26,3 +26,7 @@ export const REGLAS_POR_DEFECTO: ReglasDecision = {
 };
 
 export const HORAS_POR_JORNADA = 8;
+
+/** Equipo por defecto del calendario: dos personas a tiempo completo desde hoy. */
+export const EQUIPO_POR_DEFECTO = { personas: 2, dedicacion: 1, inicio: '' };
+export const hoy = () => new Date().toISOString().slice(0, 10);

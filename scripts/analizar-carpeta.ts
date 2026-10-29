@@ -25,7 +25,7 @@ const t0 = Date.now();
 const { objetos, avisos } = leerRepositorio(archivos, path.basename(carpeta));
 const bases = analizarBase(objetos, new BaseSap(datos), destino as Destino);
 const uso = csv ? leerUso(fs.readFileSync(csv, 'utf8')) : null;
-const a = evaluar(path.basename(carpeta), bases, uso, { destino: destino as Destino, reglas: REGLAS_POR_DEFECTO, supuestos: SUPUESTOS_POR_DEFECTO, horasPorJornada: HORAS_POR_JORNADA }, datos.meta, avisos);
+const a = evaluar(path.basename(carpeta), bases, uso, { destino: destino as Destino, reglas: REGLAS_POR_DEFECTO, supuestos: SUPUESTOS_POR_DEFECTO, horasPorJornada: HORAS_POR_JORNADA, equipo: { personas: 2, dedicacion: 1, inicio: '2026-11-02' } }, datos.meta, avisos);
 const r = a.resumen;
 console.log(`${a.nombre} · ${destino} · ${Date.now() - t0} ms`);
 console.log(`objetos ${r.objetos} · líneas ${r.lineas} · tipos ${JSON.stringify(r.porTipo)}`);

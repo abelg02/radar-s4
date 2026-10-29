@@ -66,6 +66,8 @@ export interface Hallazgo {
   titulo: string;
   linea: number;
   detalle: string;
+  /** Ejemplo de corrección de la regla (código después) */
+  correccion?: string;
 }
 
 export interface Uso {
@@ -130,6 +132,25 @@ export interface Opciones {
   reglas: ReglasDecision;
   supuestos: Supuesto[];
   horasPorJornada: number;
+  equipo: Equipo;
+}
+
+/** Equipo para el calendario: cuántas personas, qué parte de su jornada y desde cuándo. */
+export interface Equipo {
+  personas: number;
+  /** Fracción de la jornada dedicada a la migración, de 0,1 a 1 */
+  dedicacion: number;
+  /** AAAA-MM-DD */
+  inicio: string;
+}
+
+export interface GrupoDuplicadoResultado {
+  miembros: string[];
+  similitud: number;
+  /** El que se propone conservar: el más usado o, sin uso, el más grande */
+  principal: string;
+  /** Esfuerzo de migrar las copias, que se ahorra si se unifican */
+  ahorro: { min: number; max: number };
 }
 
 export interface Resumen {
@@ -147,6 +168,8 @@ export interface Resumen {
   tieneUso: boolean;
   periodoUso?: string;
   datosSap: { commit: string; generado: string; objetos: number };
+  /** Copias casi iguales que no se retiran: objetos afectados y horas que se ahorran unificándolas */
+  duplicados: { grupos: number; objetos: number; min: number; max: number };
 }
 
 export interface Analisis {
@@ -155,5 +178,6 @@ export interface Analisis {
   opciones: Opciones;
   resultados: ResultadoObjeto[];
   resumen: Resumen;
+  duplicados: GrupoDuplicadoResultado[];
   avisos: string[];
 }

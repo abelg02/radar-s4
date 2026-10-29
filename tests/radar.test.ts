@@ -11,7 +11,7 @@ import type { Archivo, Opciones } from '../src/tipos';
 
 const datos = JSON.parse(fs.readFileSync(new URL('../public/datos/sap-apis.json', import.meta.url), 'utf8')) as DatosSap;
 const base = new BaseSap(datos);
-const opciones = (destino: Opciones['destino'] = 's4op'): Opciones => ({ destino, reglas: { ...REGLAS_POR_DEFECTO }, supuestos: SUPUESTOS_POR_DEFECTO, horasPorJornada: 8 });
+const opciones = (destino: Opciones['destino'] = 's4op'): Opciones => ({ destino, reglas: { ...REGLAS_POR_DEFECTO }, supuestos: SUPUESTOS_POR_DEFECTO, horasPorJornada: 8, equipo: { personas: 2, dedicacion: 1, inicio: '2026-11-02' } });
 
 describe('lectura de abapGit', () => {
   it('reconoce nombre, tipo y parte, con espacios de nombres', () => {
@@ -147,5 +147,41 @@ describe('GitHub', () => {
     expect(parsearUrlGitHub('https://github.com/abap2xlsx/abap2xlsx')).toEqual({ usuario: 'abap2xlsx', repo: 'abap2xlsx', rama: undefined });
     expect(parsearUrlGitHub('github.com/a/b/tree/dev')?.rama).toBe('dev');
     expect(parsearUrlGitHub('https://gitlab.com/a/b')).toBeNull();
+  });
+});
+
+describe('duplicados, calendario y propuesta', async () => {
+  const { buscarDuplicados } = await import('../src/analisis/duplicados');
+  const { calendario, diasLaborables } = await import('../src/esfuerzo/calendario');
+  const { propuestaObjeto } = await import('../src/analisis/propuesta');
+  const cuerpo = Array.from({ length: 12 }, (_, i) => `SELECT SINGLE * FROM t00${i} INTO @DATA(ls_${i}).`).join('\n');
+
+  it('agrupa copias casi iguales y no las que son distintas', () => {
+    const { objetos } = leerRepositorio([
+      { ruta: 'src/zr_a.prog.abap', contenido: `REPORT zr_a.\n${cuerpo}` },
+      { ruta: 'src/zr_a_2.prog.abap', contenido: `REPORT zr_a_2.\n* copia\n${cuerpo}\nCLEAR lv.` },
+      { ruta: 'src/zr_b.prog.abap', contenido: `REPORT zr_b.\n${Array.from({ length: 12 }, (_, i) => `lv_${i} = ${i}.`).join('\n')}` },
+    ], 'Z');
+    const g = buscarDuplicados(objetos);
+    expect(g).toHaveLength(1);
+    expect(g[0].miembros).toEqual(['PROG:ZR_A', 'PROG:ZR_A_2']);
+  });
+
+  it('cuenta días laborables y calcula el calendario por fases', () => {
+    expect(diasLaborables('2026-11-02', '2026-11-08')).toBe(5);
+    const r = { porFase: [{ fase: 0, nombre: 'a', objetos: 1, min: 5, max: 10 }, { fase: 1, nombre: 'b', objetos: 1, min: 10, max: 20 }] } as never;
+    const c = calendario(r, { personas: 1, dedicacion: 1, inicio: '2026-11-02' });
+    expect(c.fases[0].finMin).toBe('2026-11-06');
+    expect(c.fases[1].inicioMin).toBe('2026-11-09');
+    expect(c.finMax).toBe('2026-12-11');
+    expect(c.llega).toBe(true);
+  });
+
+  it('propone la corrección automática y lista lo manual con el sucesor de SAP', () => {
+    const { objetos } = leerRepositorio([{ ruta: 'src/zr_m.prog.abap', contenido: 'REPORT zr_m.\nMOVE a TO b.\nSELECT * FROM vbak INTO TABLE @DATA(lt).' }], 'Z');
+    const a = evaluar('t', analizarBase(objetos, base, 's4pub'), null, opciones('s4pub'), datos.meta);
+    const p = propuestaObjeto(a.resultados[0], 's4pub');
+    expect(p.cambios[0]).toMatchObject({ linea: 2, a: 'b = a.' });
+    expect(p.manuales.some((m) => /VBAK/.test(m.titulo) && /I_SALESDOCUMENT/.test(m.detalle))).toBe(true);
   });
 });
