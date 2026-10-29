@@ -1,10 +1,12 @@
+<p align="center"><img src="docs/portada.png" alt="Radar S/4: el informe de migración a S/4HANA de tu código Z" width="100%"></p>
+
 # Radar S/4
 
 **El informe de migración a S/4HANA de tu código Z, en tu navegador.**
 
 Subes el código exportado con abapGit y, si lo tienes, el uso real de SUSG o SCMON. Radar S/4 te dice qué objetos retirar, mantener, adaptar o rehacer con clean core, el nivel de clean core de cada uno según la lista oficial de SAP, cuánto esfuerzo supone (un rango, con los supuestos a la vista) y en qué orden hacerlo.
 
-**Web:** https://abelg02.github.io/radar-s4/
+<p align="center"><a href="https://abelg02.github.io/radar-s4/"><b>Abrir Radar S/4</b></a> · <a href="https://github.com/abelg02/radar-s4/actions/workflows/pages.yml"><img src="https://github.com/abelg02/radar-s4/actions/workflows/pages.yml/badge.svg" alt="Tests y publicación"></a></p>
 
 - Gratis, sin registro y sin servidor: el código no sale de tu navegador.
 - Cruza cada objeto con el [Cloudification Repository](https://github.com/SAP/abap-atc-cr-cv-s4hc) de SAP, la misma lista que usa el ATC. Se actualiza sola cada semana.
@@ -20,6 +22,12 @@ Subes el código exportado con abapGit y, si lo tienes, el uso real de SUSG o SC
 | Objetos de SAP | Tablas, funciones, clases, transacciones y autorizaciones de SAP que usa cada objeto: liberado (A), classic API (B), interno (C) o "noAPI" y escrituras directas (D), con el sucesor que indica SAP. |
 | Dependencias y uso | Grafo de qué objeto usa a cuál, cruzado con SUSG o SCMON. Nada se retira si algo que se queda lo necesita. |
 | Esfuerzo | Horas por decisión y por cambio, editables. Rango en jornadas, análisis de sensibilidad y plan en cuatro fases. |
+
+## Capturas
+
+| Mapa de riesgo | Detalle de un objeto |
+|---|---|
+| <img src="docs/captura-mapa.png" alt="Mapa de riesgo: uso frente a complejidad del cambio"> | <img src="docs/captura-detalle.png" alt="Detalle de un objeto: decisión, objetos de SAP con su nivel y sucesor, hallazgos y código"> |
 
 ## Uso real (SUSG o SCMON)
 
@@ -46,6 +54,7 @@ npm test           # tests
 npm run sap        # descarga y compacta el Cloudification Repository
 npm run motor      # copia el motor de CleanCore Check desde Proyecto-SAP-ABAP
 npm run ejemplo    # regenera el sistema de ejemplo (ficticio)
+node scripts/portada.mjs   # portada, imagen para redes y capturas (con la web en local)
 npx vite-node scripts/analizar-carpeta.ts <carpeta-abapgit> [s4op|s4pce|s4pub] [uso.csv]
 ```
 
