@@ -1,0 +1,48 @@
+# Radar S/4
+
+**El informe de migración a S/4HANA de tu código Z, en tu navegador.**
+
+Subes el código exportado con abapGit y, si lo tienes, el uso real de SUSG o SCMON. Radar S/4 te dice qué objetos retirar, mantener, adaptar o rehacer con clean core, el nivel de clean core de cada uno según la lista oficial de SAP, cuánto esfuerzo supone (un rango, con los supuestos a la vista) y en qué orden hacerlo.
+
+**Web:** https://abelg02.github.io/radar-s4/
+
+- Gratis, sin registro y sin servidor: el código no sale de tu navegador.
+- Cruza cada objeto con el [Cloudification Repository](https://github.com/SAP/abap-atc-cr-cv-s4hc) de SAP, la misma lista que usa el ATC. Se actualiza sola cada semana.
+- Usa las 72 reglas de [CleanCore Check](https://abelg02.github.io/Proyecto-SAP-ABAP/herramientas/cleancore-check.html) para S/4HANA on-premise, Private Edition y Public Edition.
+- Informe ejecutivo en PDF de 5 páginas y plan de trabajo en CSV para Excel o Jira.
+
+## Qué hace
+
+| Paso | Detalle |
+|---|---|
+| Inventario | Lee el formato de abapGit (ZIP, carpeta o repositorio público de GitHub): programas, includes, clases, interfaces, grupos y módulos de función, CDS, comportamiento RAP, tablas y ampliaciones, con su paquete. |
+| Reglas | Simplificaciones de S/4HANA (VBUK/VBUP, KONV, BSID…, MATNR de 40, Business Partner, SELECT sin ORDER BY) y tecnología que no existe en ABAP Cloud. |
+| Objetos de SAP | Tablas, funciones, clases, transacciones y autorizaciones de SAP que usa cada objeto: liberado (A), classic API (B), interno (C) o "noAPI" y escrituras directas (D), con el sucesor que indica SAP. |
+| Dependencias y uso | Grafo de qué objeto usa a cuál, cruzado con SUSG o SCMON. Nada se retira si algo que se queda lo necesita. |
+| Esfuerzo | Horas por decisión y por cambio, editables. Rango en jornadas, análisis de sensibilidad y plan en cuatro fases. |
+
+## Uso real (SUSG o SCMON)
+
+Exporta en CSV la lista de objetos usados. Se reconocen las columnas habituales (`OBJ_TYPE`, `OBJ_NAME`, `COUNTER`, `LAST_USED`, `PROC_TYPE`, `PROC_NAME`…) en inglés o en español, con separador `;`, `,` o tabulador. También vale la plantilla propia: `objeto;tipo;ejecuciones;ultima_ejecucion`. SAP recomienda medir entre 6 y 18 meses, con al menos un cierre de año.
+
+## Límites
+
+Es una primera foto a partir del código exportado: no accede al sistema. Complementa, no sustituye, a SAP Readiness Check, al ATC y a la app Custom Code Migration. Las horas por defecto son estimaciones del autor y se pueden ajustar. El sistema de ejemplo de la web es ficticio; los repositorios de ejemplo de GitHub son reales.
+
+## Desarrollo
+
+```bash
+npm install
+npm run dev        # web en local
+npm test           # tests
+npm run sap        # descarga y compacta el Cloudification Repository
+npm run motor      # copia el motor de CleanCore Check desde Proyecto-SAP-ABAP
+npm run ejemplo    # regenera el sistema de ejemplo (ficticio)
+npx vite-node scripts/analizar-carpeta.ts <carpeta-abapgit> [s4op|s4pce|s4pub] [uso.csv]
+```
+
+TypeScript, Vite y un Web Worker para el análisis. Sin dependencias en tiempo de ejecución salvo [fflate](https://github.com/101arrowz/fflate) para leer ZIP.
+
+---
+
+Herramienta gratuita de [Abel González Guerra](https://abelg02.github.io/portfolio/). No afiliada a SAP. SAP, S/4HANA y ABAP son marcas de SAP SE. Licencia MIT.

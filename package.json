@@ -1,0 +1,26 @@
+{
+  "name": "radar-s4",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Informe de migración a S/4HANA del código Z, en el navegador.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "motor": "node scripts/copiar-motor.mjs",
+    "sap": "node scripts/actualizar-sap.mjs",
+    "ejemplo": "node scripts/generar-ejemplo.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "5.9",
+    "vite": "^7.3.7",
+    "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3"
+  }
+}

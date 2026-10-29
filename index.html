@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Radar S/4 · Informe de migración del código Z</title>
+  <meta name="description" content="Herramienta gratuita: analiza el código Z exportado con abapGit y el uso real de SUSG o SCMON y genera el informe de migración a S/4HANA. Todo en tu navegador.">
+  <meta property="og:title" content="Radar S/4 · Informe de migración del código Z">
+  <meta property="og:description" content="Qué retirar, qué adaptar y qué rehacer con clean core antes de migrar a S/4HANA, con el esfuerzo y sus supuestos a la vista. Gratis y sin que el código salga de tu navegador.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23202a33'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%23e8eef2' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='4' fill='none' stroke='%23e8eef2' stroke-width='2'/%3E%3Cpath d='M16 16 L24 9' stroke='%23d9743a' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="cabecera">
+    <a class="logo" href="./" aria-label="Radar S/4, inicio">
+      <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#202a33"/><circle cx="16" cy="16" r="10" fill="none" stroke="#e8eef2" stroke-width="2"/><circle cx="16" cy="16" r="4" fill="none" stroke="#e8eef2" stroke-width="2"/><path d="M16 16 L24 9" stroke="#d9743a" stroke-width="2.5" stroke-linecap="round"/></svg>
+      <span>Radar S/4</span>
+    </a>
+    <nav class="nav">
+      <a href="#metodologia">Metodología</a>
+      <a href="https://github.com/abelg02/radar-s4" rel="noopener">Código</a>
+    </nav>
+  </header>
+  <main id="app"></main>
+  <div id="informe" aria-hidden="true"></div>
+  <footer class="pie">
+    <p>Radar S/4 es una herramienta gratuita de <a href="https://abelg02.github.io/portfolio/" rel="noopener">Abel González Guerra</a>. No afiliada a SAP. SAP, S/4HANA y ABAP son marcas de SAP SE.</p>
+    <p>El análisis se hace en tu navegador: el código no se envía a ningún servidor. Complementa, no sustituye, a SAP Readiness Check y al ATC.</p>
+  </footer>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
