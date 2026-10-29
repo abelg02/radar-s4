@@ -23,8 +23,9 @@ export function partesDeRuta(ruta: string): Partes | null {
   const trozos = base.split('.');
   if (trozos.length < 3) return null;
   const extension = trozos.pop()!.toLowerCase();
-  const nombre = trozos.shift()!.replace(/#/g, '/').toUpperCase();
-  const tipo = trozos.shift()!.toLowerCase();
+  // Solo caracteres válidos en nombres ABAP: nada de lo que llega en un nombre de archivo se pinta tal cual
+  const nombre = trozos.shift()!.replace(/#/g, '/').toUpperCase().replace(/[^A-Z0-9_/]/g, '_');
+  const tipo = trozos.shift()!.toLowerCase().replace(/[^a-z0-9_]/g, '');
   return { nombre, tipo, parte: trozos.join('.').toLowerCase(), extension };
 }
 
@@ -95,7 +96,7 @@ export function leerRepositorio(entrada: Archivo[], nombreRepo = 'REPOSITORIO'):
     if (p.tipo === 'fugr') {
       if (!esFuente) continue;
       const funcs = funcionesDeGrupo.get(p.nombre);
-      const sub = p.parte.toUpperCase().replace(/#/g, '/');
+      const sub = p.parte.toUpperCase().replace(/#/g, '/').replace(/[^A-Z0-9_/]/g, '_');
       if (funcs?.has(sub)) {
         const o = objeto('FUNC', sub, a.ruta, p.nombre);
         anadirFuente(o, a);

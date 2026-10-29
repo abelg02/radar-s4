@@ -8,8 +8,8 @@ import { $, $$, DECISIONES, DESTINOS, NIVELES, ORDEN_DECISION, descargar, esc, n
 
 const base = import.meta.env.BASE_URL;
 const REPOS_REALES = [
-  { url: 'https://github.com/abap2xlsx/abap2xlsx', nombre: 'abap2xlsx', nota: 'Excel desde ABAP, proyecto abierto con más de 15 años de historia' },
-  { url: 'https://github.com/larshp/abapOpenChecks', nombre: 'abapOpenChecks', nota: 'Comprobaciones abiertas para el Code Inspector' },
+  { url: 'https://github.com/abelg02/ABAP_Cloud_AE', nombre: 'ABAP Cloud de avanzado a experto', nota: 'Código real del autor: clases y una app de incidencias con RAP' },
+  { url: 'https://github.com/abelg02/ABAP_Cloud_CA', nombre: 'ABAP Cloud de cero a avanzado', nota: 'Código real del autor: fundamentos, SQL y órdenes de trabajo' },
 ];
 
 export function pintarInicio(estado: Estado, error?: string) {
@@ -80,11 +80,11 @@ export function pintarInicio(estado: Estado, error?: string) {
     <div class="probar">
       <div>
         <h2>¿Sin código a mano? Pruébalo</h2>
-        <p class="tenue">Con un sistema de ejemplo o con código ABAP real y público de GitHub.</p>
+        <p class="tenue">Con un sistema de ejemplo o con código ABAP real del autor, publicado en GitHub.</p>
       </div>
       <div class="opciones-probar">
         <button class="opcion" id="probar-ejemplo" type="button"><b>Sistema de ejemplo</b><small>Empresa ficticia con unos 200 objetos Z de 2006 a 2025 y un CSV de uso inventado. Los objetos de SAP que usa son reales.</small></button>
-        ${REPOS_REALES.map((r) => `<button class="opcion" data-repo="${esc(r.url)}" type="button"><b>Repositorio real: ${esc(r.nombre)}</b><small>${esc(r.nota)}. Sin datos de uso.</small></button>`).join('')}
+        ${REPOS_REALES.map((r) => `<button class="opcion" data-repo="${esc(r.url)}" type="button"><b>${esc(r.nombre)}</b><small>${esc(r.nota)}. Sin datos de uso.</small></button>`).join('')}
       </div>
     </div>
 

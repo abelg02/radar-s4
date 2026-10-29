@@ -16,7 +16,7 @@
   --nivel-c: #d29a2b;
   --nivel-d: #c2452d;
   --radio: 8px;
-  --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  --mono: ui-monospace, 'Cascadia Mono', Consolas, 'Liberation Mono', monospace;
   color-scheme: light;
 }
 
@@ -24,7 +24,7 @@
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
-  font: 15px/1.55 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font: 15px/1.55 system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color: var(--texto);
   background: var(--fondo);
 }

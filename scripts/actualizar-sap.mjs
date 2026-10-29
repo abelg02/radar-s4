@@ -90,6 +90,7 @@ const salida = {
     commit,
     generado: new Date().toISOString().slice(0, 10),
     objetos: Object.keys(objetos).length,
+    licencia: 'Datos derivados del Cloudification Repository de SAP. Copyright SAP SE or an SAP affiliate company and project abap-atc-cr-cv-s4hc contributors. Apache License 2.0.',
     formato: 'tipo|PCE|Public|BTP|clasificación|sucesores. R liberado · N no se liberará · S no se liberará (estable) · D obsoleto · B classic API · X noAPI',
   },
   objetos,

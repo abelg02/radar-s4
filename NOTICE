@@ -1,0 +1,21 @@
+Radar S/4
+Copyright (c) 2026 Abel González Guerra. Licencia MIT (ver LICENSE).
+
+Este proyecto incluye datos derivados de terceros:
+
+public/datos/sap-apis.json
+  Versión compactada (solo tipos de objeto detectables en código ABAP) de los archivos
+  objectReleaseInfo_PCELatest.json, objectReleaseInfoLatest.json, objectReleaseInfo_BTPLatest.json
+  y objectClassifications_SAP.json del proyecto "abap-atc-cr-cv-s4hc" (Cloudification Repository):
+  https://github.com/SAP/abap-atc-cr-cv-s4hc
+  Copyright 2020-2023 SAP SE or an SAP affiliate company and project abap-atc-cr-cv-s4hc contributors.
+  Licensed under the Apache License, Version 2.0: https://www.apache.org/licenses/LICENSE-2.0
+  Cambios: se han seleccionado campos y tipos de objeto y se han unido en un formato compacto.
+
+src/engine/cleancore-engine.js
+  Motor de CleanCore Check, del mismo autor (https://github.com/abelg02/Proyecto-SAP-ABAP), licencia MIT.
+
+fflate (dependencia para leer ZIP): https://github.com/101arrowz/fflate, licencia MIT.
+
+SAP, S/4HANA, ABAP y otros nombres de productos de SAP son marcas comerciales o registradas de SAP SE
+en Alemania y en otros países. Este proyecto no está afiliado, patrocinado ni aprobado por SAP SE.

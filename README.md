@@ -27,7 +27,15 @@ Exporta en CSV la lista de objetos usados. Se reconocen las columnas habituales 
 
 ## Límites
 
-Es una primera foto a partir del código exportado: no accede al sistema. Complementa, no sustituye, a SAP Readiness Check, al ATC y a la app Custom Code Migration. Las horas por defecto son estimaciones del autor y se pueden ajustar. El sistema de ejemplo de la web es ficticio; los repositorios de ejemplo de GitHub son reales.
+Es una primera foto a partir del código exportado: no accede al sistema. Complementa, no sustituye, a SAP Readiness Check, al ATC y a la app Custom Code Migration. Las horas por defecto son estimaciones del autor y se pueden ajustar. Los resultados son orientativos y se ofrecen sin garantía. El sistema de ejemplo de la web es ficticio (código y uso inventados); los repositorios de ejemplo son proyectos reales del autor.
+
+## Privacidad
+
+Sin servidor, sin cookies, sin analítica y sin registro. El código se analiza en tu navegador y no se envía a ningún sitio. Solo se guardan en tu navegador (localStorage) tus supuestos de esfuerzo. Al analizar un repositorio de GitHub, tu navegador lo descarga directamente de `api.github.com` y `raw.githubusercontent.com`. La web no carga fuentes ni scripts de terceros.
+
+## Datos de terceros
+
+La lista de objetos de SAP (`public/datos/sap-apis.json`) es una versión compactada del [Cloudification Repository](https://github.com/SAP/abap-atc-cr-cv-s4hc), © SAP SE, licencia Apache 2.0. Detalle en [NOTICE](NOTICE).
 
 ## Desarrollo
 

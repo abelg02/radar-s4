@@ -104,6 +104,7 @@ export function htmlInforme(a: Analisis): string {
     <li>Complementa, no sustituye, a SAP Readiness Check, al ATC y a la app Custom Code Migration.</li>
     <li>Las horas son supuestos editables, no datos de SAP. Ajústalos a tu equipo antes de presupuestar.</li>
     <li>El análisis se hace en el navegador: el código no se envía a ningún servidor.</li>
+    <li>Resultados orientativos, sin garantía. Lista de objetos de SAP: Cloudification Repository, © SAP SE, licencia Apache 2.0.</li>
   </ul>
   ${pie(5)}
 </section>`;

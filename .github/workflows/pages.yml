@@ -3,6 +3,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Los commits del bot no lanzan otros workflows: se publica al terminar la actualización semanal
+  workflow_run:
+    workflows: ["Actualizar lista oficial de SAP"]
+    types: [completed]
 permissions:
   contents: read
   pages: write
