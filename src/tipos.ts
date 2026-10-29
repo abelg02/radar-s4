@@ -1,6 +1,8 @@
 // Tipos compartidos por la lectura, el análisis, el esfuerzo y el informe.
 
-export type Destino = 's4op' | 's4pce' | 's4pub';
+export type Destino = 's4op' | 's4pce' | 's4pub' | 'btp';
+/** Destinos donde solo vale ABAP Cloud */
+export const esCloud = (d: Destino) => d === 's4pub' || d === 'btp';
 export type Nivel = 'A' | 'B' | 'C' | 'D';
 export type Decision = 'retirar' | 'mantener' | 'adaptar' | 'rehacer';
 export type EstadoUso = 'usado' | 'sin-uso' | 'desconocido';

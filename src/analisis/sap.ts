@@ -69,7 +69,7 @@ export function evaluarUsosSap(refs: Referencia[], base: BaseSap, destino: Desti
     if (!info && tipo === 'clase' && !/^(CL_|IF_|CX_|\/)/.test(nombre)) continue;
 
     const lineas = [...new Set(lista.map((r) => r.linea))].sort((a, b) => a - b);
-    const pub = info ? (destino === 's4pub' ? info.pub : info.pub || info.btp) : '';
+    const pub = info ? (destino === 'btp' ? info.btp : destino === 's4pub' ? info.pub : info.pub || info.btp) : '';
     const bloqueaCloud = pub !== 'R';
     let nivel: Nivel;
     let motivo: string;

@@ -10,11 +10,14 @@ Subes el código exportado con abapGit y, si lo tienes, el uso real de SUSG o SC
 
 - Gratis, sin registro y sin servidor: el código no sale de tu navegador.
 - Cruza cada objeto con el [Cloudification Repository](https://github.com/SAP/abap-atc-cr-cv-s4hc) de SAP, la misma lista que usa el ATC. Se actualiza sola cada semana.
-- Usa las 72 reglas de [CleanCore Check](https://abelg02.github.io/Proyecto-SAP-ABAP/herramientas/cleancore-check.html) para S/4HANA on-premise, Private Edition y Public Edition.
+- Usa las 72 reglas de [CleanCore Check](https://abelg02.github.io/Proyecto-SAP-ABAP/herramientas/cleancore-check.html).
 - Propuesta de cambio por objeto: corrección automática de la sintaxis segura y lista de cambios manuales con el sucesor que indica SAP. Descarga del repositorio corregido en ZIP, listo para abapGit.
 - Código casi duplicado: detecta copias (ZR_VENTAS, ZR_VENTAS_2…) y calcula lo que se ahorra unificándolas antes de migrar.
 - Calendario: con tu equipo y fecha de inicio, cuándo termina cada fase y si llegas antes del fin del mantenimiento estándar de ECC.
-- Informe ejecutivo en PDF de 5 páginas y plan de trabajo en CSV para Excel o Jira.
+- Vista por paquetes: mapa de calor por área con decisiones, niveles, código sin uso y esfuerzo.
+- Cuatro destinos: S/4HANA on-premise, Private Edition, Public Edition y SAP BTP ABAP Environment.
+- Informe ejecutivo en PDF de 5 páginas y plan de trabajo en CSV, en español o en inglés.
+- Guardar el análisis sin el código (para compartirlo con el equipo), volver a abrirlo y compararlo con uno anterior para ver el avance.
 
 ## Qué hace
 

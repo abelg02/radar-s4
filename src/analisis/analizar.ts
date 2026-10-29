@@ -2,6 +2,7 @@
 //  1. analizarBase: lo costoso y que solo depende del código y del destino (reglas, referencias, niveles, dependencias).
 //  2. evaluar: uso, decisiones, esfuerzo y resumen. Es instantáneo, así que se repite cada vez que el usuario
 //     cambia un supuesto o una regla de decisión.
+import { esCloud } from '../tipos';
 import type { Analisis, Decision, Destino, EstadoUso, GrupoDuplicadoResultado, Hallazgo, Nivel, ObjetoZ, Opciones, Partida, ResultadoObjeto, Resumen, Supuesto, UsoSap } from '../tipos';
 import type { GrupoDuplicado } from './duplicados';
 import type { DatosUso } from '../entrada/uso';
@@ -90,8 +91,8 @@ function hallazgosObligatorios(hs: Hallazgo[], destino: Destino, estricto: boole
     if (CUBIERTAS_POR_SAP.has(h.regla)) return false;
     if (h.categoria === 's4') return h.severidad !== 'info';
     // En Private Edition las reglas de ABAP Cloud son recomendación, salvo con clean core estricto
-    if (h.categoria === 'cloud') return destino === 's4pub' ? h.severidad !== 'info' : destino === 's4pce' && estricto && h.severidad === 'warning';
-    if (h.categoria === 'release') return destino === 's4pub' && h.severidad === 'error';
+    if (h.categoria === 'cloud') return esCloud(destino) ? h.severidad !== 'info' : destino === 's4pce' && estricto && h.severidad === 'warning';
+    if (h.categoria === 'release') return esCloud(destino) && h.severidad === 'error';
     return false;
   });
 }
@@ -150,7 +151,7 @@ export function evaluar(nombre: string, bases: ObjetoBase[], uso: DatosUso | nul
     };
     const obligatorios = hallazgosObligatorios(b.hallazgos, destino, reglas.nivelCEsAdaptar);
     const nivelD = b.sap.filter((s) => s.nivel === 'D');
-    const cloud = destino === 's4pub';
+    const cloud = esCloud(destino);
     const sapACambiar = b.sap.filter((s) => s.nivel !== 'D' && (cloud ? s.bloqueaCloud : reglas.nivelCEsAdaptar && destino === 's4pce' && s.nivel === 'C'));
 
     let decision: Decision;

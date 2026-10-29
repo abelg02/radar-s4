@@ -1,10 +1,11 @@
 // Conclusiones y datos que faltan, redactados a partir de los resultados. Sin cifras que no salgan del análisis.
 import type { Analisis } from '../tipos';
-import { DESTINOS, num, pct, rango } from '../ui/util';
+import { DESTINOS, idioma, num, pct, rango, tr } from '../ui/util';
 import { calendario, FIN_ECC } from '../esfuerzo/calendario';
 import { fechaCorta } from '../ui/graficos';
 
 export function conclusiones(a: Analisis): string[] {
+  if (idioma() === 'en') return conclusionsEn(a);
   const r = a.resumen;
   const out: string[] = [];
   const total = r.objetos;
@@ -29,6 +30,7 @@ export function conclusiones(a: Analisis): string[] {
 }
 
 export function datosQueFaltan(a: Analisis): string[] {
+  if (idioma() === 'en') return missingEn(a);
   const r = a.resumen;
   const out: string[] = [];
   if (!r.tieneUso) out.push('Uso real (SUSG o SCMON): sin él no se puede saber qué código sobra.');
@@ -40,6 +42,7 @@ export function datosQueFaltan(a: Analisis): string[] {
 
 /** Frase con el resultado del calendario, sin cifras que no salgan del cálculo. */
 export function veredictoCalendario(cal: ReturnType<typeof calendario>, personas: number): string {
+  if (idioma() === 'en') return verdictEn(cal, personas);
   if (!cal.fases.length) return 'No hay trabajo que planificar.';
   const fin = `Con ${personas} persona${personas === 1 ? '' : 's'}, el trabajo termina entre el ${fechaCorta(cal.finMin)} y el ${fechaCorta(cal.finMax)}.`;
   if (cal.llega) return `${fin} Llega antes del fin del mantenimiento estándar de ECC (${fechaCorta(FIN_ECC)}).`;
@@ -48,3 +51,42 @@ export function veredictoCalendario(cal: ReturnType<typeof calendario>, personas
   return `${fin} No llega antes del fin del mantenimiento estándar de ECC (${fechaCorta(FIN_ECC)}).${necesarias}`;
 }
 
+
+// ------------------------------------------------------------------ English
+function conclusionsEn(a: Analisis): string[] {
+  const r = a.resumen;
+  const out: string[] = [];
+  const total = r.objetos;
+  const migrar = total - r.porDecision.retirar;
+  if (r.tieneUso && r.porDecision.retirar) out.push(`${num(r.porDecision.retirar)} of ${num(total)} custom objects (${pct(r.porDecision.retirar, total)}) were not executed in the measured period and nothing that stays depends on them: they can be retired before migrating.`);
+  else if (!r.tieneUso) out.push('Without usage data no object is proposed for retirement. With a SUSG or SCMON export the analysis separates what is used from what is not.');
+  const cambiar = r.porDecision.adaptar + r.porDecision.rehacer;
+  out.push(`Of the ${num(migrar)} objects that are migrated, ${num(cambiar)} need changes for ${DESTINOS[a.opciones.destino].nombre}: ${num(r.porDecision.adaptar)} are adapted and ${num(r.porDecision.rehacer)} are rebuilt with clean core.`);
+  out.push(`The estimated effort is ${rango(r.esfuerzo.min, r.esfuerzo.max)} person-days, with the assumptions on the methodology page.${r.sensibilidad[0] ? ` The one that weighs most is "${tr(r.sensibilidad[0].supuesto)}" (${Math.round(r.sensibilidad[0].peso * 100)}% of the maximum).` : ''}`);
+  if (r.porNivel.D) out.push(`${num(r.porNivel.D)} objects are at clean core level D (they write to SAP tables, use "noAPI" objects or enhance standard code): the main risk at every upgrade.`);
+  const top = r.topSap.find((x) => x.nivel !== 'A');
+  if (top) out.push(`The most used non-released SAP object is ${top.nombre}, in ${num(top.objetos)} custom objects${top.sucesores.length ? `; SAP names ${top.sucesores.slice(0, 2).join(' or ')} as its successor` : ''}.`);
+  const d = r.duplicados;
+  if (d.grupos) out.push(`${num(d.objetos)} objects form ${num(a.duplicados.length)} group(s) of near-duplicate code: consolidating the copies before migrating would save ${rango(d.min, d.max)} person-days.`);
+  out.push(verdictEn(calendario(r, a.opciones.equipo), a.opciones.equipo.personas));
+  return out;
+}
+
+function missingEn(a: Analisis): string[] {
+  const r = a.resumen;
+  const out: string[] = [];
+  if (!r.tieneUso) out.push('Actual usage (SUSG or SCMON): without it there is no way to know which code is obsolete.');
+  else if (r.uso.desconocido) out.push(`${num(r.uso.desconocido)} objects without measured usage (includes, tables, CDS views with no consumers in the repository...).`);
+  out.push('Code outside the repository: if other packages use these objects, retiring them may break them.');
+  out.push('Modifications of standard code (SPAU/SPDD) and customizing: they are not part of the code exported with abapGit.');
+  return out;
+}
+
+function verdictEn(cal: ReturnType<typeof calendario>, personas: number): string {
+  if (!cal.fases.length) return 'There is no work to plan.';
+  const fin = `With ${personas} ${personas === 1 ? 'person' : 'people'}, the work ends between ${fechaCorta(cal.finMin)} and ${fechaCorta(cal.finMax)}.`;
+  const necesarias = cal.personasNecesarias ? ` To make it in the pessimistic case too, about ${cal.personasNecesarias} people with the same allocation would be needed.` : '';
+  if (cal.llega) return `${fin} It finishes before the end of ECC mainstream maintenance (${fechaCorta(FIN_ECC)}).`;
+  if (cal.llegaJusto) return `${fin} It only finishes in time in the optimistic case.${necesarias}`;
+  return `${fin} It does not finish before the end of ECC mainstream maintenance (${fechaCorta(FIN_ECC)}).${necesarias}`;
+}

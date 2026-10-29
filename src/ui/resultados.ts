@@ -1,13 +1,16 @@
 // Panel de resultados: resumen, objetos, mapa de riesgo, plan por fases, objetos de SAP y supuestos.
 import type { Decision, Destino, Nivel, ResultadoObjeto } from '../tipos';
 import type { Estado } from '../main';
-import { cambiarDestino, guardarOpciones, recalcular, volverAlInicio } from '../main';
+import { cambiarDestino, compararCon, guardarOpciones, recalcular, volverAlInicio } from '../main';
+import { exportarAnalisis } from '../informe/guardar';
+import type { Idioma } from './util';
 import { conclusiones, datosQueFaltan, veredictoCalendario } from '../informe/conclusiones';
 import { csvPlan, markdown } from '../informe/exportar';
 import { imprimirInforme } from '../informe/informe';
 import { SUPUESTOS_POR_DEFECTO, REGLAS_POR_DEFECTO } from '../esfuerzo/supuestos';
 import { propuestaObjeto, zipCorregido } from '../analisis/propuesta';
 import { calendario } from '../esfuerzo/calendario';
+import { calor, porPaquete } from '../informe/paquetes';
 import { barraApilada, barrasRango, gantt, mapaRiesgo } from './graficos';
 import { $, $$, CATEGORIAS, DECISIONES, DESTINOS, NIVELES, ORDEN_DECISION, USOS, dec, descargar, esc, num, pct, rango, tipo } from './util';
 
@@ -15,6 +18,7 @@ const PESTANAS = [
   ['resumen', 'Resumen'],
   ['objetos', 'Objetos'],
   ['mapa', 'Mapa de riesgo'],
+  ['paquetes', 'Paquetes'],
   ['plan', 'Plan y calendario'],
   ['duplicados', 'Duplicados'],
   ['sap', 'Objetos de SAP'],
@@ -40,13 +44,22 @@ export function pintarResultados(estado: Estado, pestana?: string) {
       </div>
       <div class="acciones">
         <label class="selector">Destino
-          <select id="destino">${(Object.keys(DESTINOS) as Destino[]).map((d) => `<option value="${d}" ${a.opciones.destino === d ? 'selected' : ''}>${DESTINOS[d].nombre}</option>`).join('')}</select>
+          <select id="destino" ${estado.soloResultados ? 'disabled title="Para cambiar de destino hace falta el código"' : ''}>${(Object.keys(DESTINOS) as Destino[]).map((d) => `<option value="${d}" ${a.opciones.destino === d ? 'selected' : ''}>${DESTINOS[d].nombre}</option>`).join('')}</select>
+        </label>
+        <label class="selector">Idioma del informe
+          <select id="idioma"><option value="es" ${estado.idiomaInforme === 'es' ? 'selected' : ''}>Español</option><option value="en" ${estado.idiomaInforme === 'en' ? 'selected' : ''}>English</option></select>
         </label>
         <button class="boton" id="pdf" type="button">Informe PDF</button>
         <button class="boton secundario" id="csv" type="button">Plan en CSV</button>
-        <button class="boton secundario" id="zip" type="button" title="El repositorio con las correcciones de sintaxis seguras aplicadas, para importarlo con abapGit">Código corregido (ZIP)</button>
+        ${estado.soloResultados ? '' : '<button class="boton secundario" id="zip" type="button" title="El repositorio con las correcciones de sintaxis seguras aplicadas, para importarlo con abapGit">Código corregido (ZIP)</button>'}
         <button class="boton secundario" id="md" type="button">Copiar resumen</button>
       </div>
+    </div>
+    <div class="acciones-sec">
+      <button class="enlace" id="guardar" type="button">Guardar análisis (sin código)</button>
+      <label class="enlace">Comparar con un análisis anterior<input type="file" id="comparar" accept=".json,application/json" hidden></label>
+      ${estado.comparacion ? '<button class="enlace" id="quitar-comparacion" type="button">Quitar comparación</button>' : ''}
+      <span class="tenue" id="msg-guardar"></span>
     </div>
     ${estado.esEjemplo ? '<div class="aviso">Sistema de ejemplo: el código y el uso son ficticios, generados para probar la herramienta. Los objetos de SAP y su estado son reales.</div>' : ''}
     ${a.avisos.map((x) => `<div class="aviso">${esc(x)}</div>`).join('')}
@@ -56,9 +69,21 @@ export function pintarResultados(estado: Estado, pestana?: string) {
 
   $('#volver').addEventListener('click', () => { history.pushState(null, '', './'); volverAlInicio(); });
   $('#destino').addEventListener('change', (e) => cambiarDestino((e.target as HTMLSelectElement).value as Destino));
-  $('#pdf').addEventListener('click', () => imprimirInforme(a));
-  $('#csv').addEventListener('click', () => descargar(`radar-s4-plan-${a.nombre.replace(/[^\w-]+/g, '_')}.csv`, csvPlan(a)));
-  $('#zip').addEventListener('click', () => {
+  const base = a.nombre.replace(/[^\w-]+/g, '_');
+  $('#idioma').addEventListener('change', (e) => { estado.idiomaInforme = (e.target as HTMLSelectElement).value as Idioma; });
+  $('#pdf').addEventListener('click', () => imprimirInforme(a, estado.idiomaInforme));
+  $('#csv').addEventListener('click', () => descargar(`radar-s4-plan-${base}${estado.idiomaInforme === 'en' ? '-en' : ''}.csv`, csvPlan(a, estado.idiomaInforme)));
+  $('#guardar').addEventListener('click', () => {
+    descargar(`radar-s4-analisis-${base}-${new Date().toISOString().slice(0, 10)}.json`, exportarAnalisis(a), 'application/json');
+    $('#msg-guardar').textContent = 'Guardado. Ábrelo desde el inicio o úsalo para comparar más adelante.';
+  });
+  ($('#comparar') as HTMLInputElement).addEventListener('change', async (e) => {
+    const f = (e.target as HTMLInputElement).files?.[0];
+    if (!f) return;
+    try { compararCon(await f.text()); } catch (err) { $('#msg-guardar').textContent = (err as Error).message; }
+  });
+  $('#quitar-comparacion')?.addEventListener('click', () => { estado.comparacion = null; estado.comparacionBase = null; recalcular('resumen'); });
+  $('#zip')?.addEventListener('click', () => {
     const { zip, archivosCambiados, cambios } = zipCorregido(a, estado.archivos);
     const url = URL.createObjectURL(new Blob([zip as BlobPart], { type: 'application/zip' }));
     const enlace = Object.assign(document.createElement('a'), { href: url, download: `radar-s4-corregido-${a.nombre.replace(/[^\w-]+/g, '_')}.zip` });
@@ -72,7 +97,8 @@ export function pintarResultados(estado: Estado, pestana?: string) {
   });
   $('#md').addEventListener('click', async (e) => {
     const b = e.currentTarget as HTMLButtonElement;
-    try { await navigator.clipboard.writeText(markdown(a)); b.textContent = 'Copiado'; } catch { descargar('radar-s4-resumen.md', markdown(a), 'text/markdown'); }
+    const md = markdown(a, estado.idiomaInforme);
+    try { await navigator.clipboard.writeText(md); b.textContent = 'Copiado'; } catch { descargar('radar-s4-resumen.md', md, 'text/markdown'); }
     setTimeout(() => (b.textContent = 'Copiar resumen'), 1600);
   });
   $$('.pestanas button').forEach((b) => b.addEventListener('click', () => {
@@ -85,7 +111,7 @@ export function pintarResultados(estado: Estado, pestana?: string) {
 
 function pintarPestana(estado: Estado) {
   const c = $('#contenido');
-  const pintores: Record<Pestana, (e: Estado, c: HTMLElement) => void> = { resumen, objetos, mapa, plan, duplicados, sap, supuestos };
+  const pintores: Record<Pestana, (e: Estado, c: HTMLElement) => void> = { resumen, objetos, mapa, paquetes, plan, duplicados, sap, supuestos };
   pintores[actual](estado, c);
 }
 
@@ -93,7 +119,21 @@ function pintarPestana(estado: Estado) {
 function resumen(estado: Estado, c: HTMLElement) {
   const a = estado.analisis!;
   const r = a.resumen;
+  const cmp = estado.comparacion;
+  const signo = (n: number, fmt: (x: number) => string = num) => (n > 0 ? `+${fmt(n)}` : n < 0 ? `−${fmt(-n)}` : '=');
   c.innerHTML = `
+  ${cmp ? `<div class="tarjeta comparacion">
+    <h2>Comparación con «${esc(cmp.nombreAnterior)}» <span class="tenue">(${esc(new Date(cmp.fechaAnterior).toLocaleDateString('es-ES'))})</span></h2>
+    <div class="kpis compacto">
+      <div><span>Objetos</span><b>${signo(cmp.delta.objetos)}</b></div>
+      <div><span>Retirar</span><b>${signo(cmp.delta.retirar)}</b></div>
+      <div><span>Adaptar + rehacer</span><b>${signo(cmp.delta.adaptar + cmp.delta.rehacer)}</b></div>
+      <div><span>Nivel D</span><b>${signo(cmp.delta.nivelD)}</b></div>
+      <div><span>Esfuerzo máx. (jornadas)</span><b>${signo(cmp.delta.max, (x) => dec(Math.round(x * 10) / 10))}</b></div>
+    </div>
+    <p class="tenue">${num(cmp.nuevos.length)} objetos nuevos · ${num(cmp.eliminados.length)} que ya no están · ${num(cmp.cambios.length)} con otra decisión o nivel.</p>
+    ${cmp.cambios.length ? `<table class="tabla compacta"><thead><tr><th>Objeto</th><th>Antes</th><th>Ahora</th></tr></thead><tbody>${cmp.cambios.slice(0, 30).map((x) => `<tr><td>${esc(x.id.split(':')[1])}</td><td>${DECISIONES[x.antes].nombre} · ${x.nivelAntes}</td><td>${DECISIONES[x.ahora].nombre} · ${x.nivelAhora}</td></tr>`).join('')}</tbody></table>${cmp.cambios.length > 30 ? `<p class="tenue">y ${num(cmp.cambios.length - 30)} más.</p>` : ''}` : ''}
+  </div>` : ''}
   <div class="kpis">
     <div><span>Objetos Z</span><b>${num(r.objetos)}</b><small>${Object.entries(r.porTipo).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([t, n]) => `${num(n)} ${tipo(t).toLowerCase()}`).join(' · ')}</small></div>
     <div><span>Se pueden retirar</span><b>${r.tieneUso ? pct(r.porDecision.retirar, r.objetos) : '—'}</b><small>${r.tieneUso ? `${num(r.porDecision.retirar)} objetos sin uso` : 'Carga el uso real para saberlo'}</small></div>
@@ -306,6 +346,33 @@ function plan(estado: Estado, c: HTMLElement) {
     recalcular('plan');
   };
   ['#eq-personas', '#eq-dedicacion', '#eq-inicio'].forEach((s) => $(s, c).addEventListener('change', cambiarEquipo));
+}
+
+// ------------------------------------------------------------------ Paquetes
+function paquetes(estado: Estado, c: HTMLElement) {
+  const a = estado.analisis!;
+  const filas = porPaquete(a);
+  const maxEsf = Math.max(1, ...filas.map((f) => f.max));
+  const celda = (n: number, total: number, color: string) => `<td class="num calor" style="${calor(total ? n / total : 0, color)}">${n ? num(n) : '<span class="tenue">·</span>'}</td>`;
+  c.innerHTML = `
+  <div class="tarjeta">
+    <h2>Mapa de calor por paquete</h2>
+    <p class="tenue">Cada fila es un paquete (área funcional). Cuanto más intenso el color, mayor la parte de sus objetos en esa columna. Ordenado por esfuerzo. Haz clic en un paquete para ver sus objetos.</p>
+    <div class="tabla-envoltorio"><table class="tabla calor-tabla">
+      <thead><tr><th>Paquete</th><th class="num">Objetos</th><th class="num">Líneas</th>${ORDEN_DECISION.map((d) => `<th class="num">${DECISIONES[d].nombre}</th>`).join('')}<th class="num">Nivel C</th><th class="num">Nivel D</th><th class="num">Sin uso</th><th>Esfuerzo (jornadas)</th></tr></thead>
+      <tbody>${filas.map((f) => `<tr data-paquete="${esc(f.paquete)}">
+        <td><b>${esc(f.paquete)}</b></td><td class="num">${num(f.objetos)}</td><td class="num">${num(f.lineas)}</td>
+        ${ORDEN_DECISION.map((d) => celda(f.porDecision[d], f.objetos, DECISIONES[d].color)).join('')}
+        ${celda(f.porNivel.C, f.objetos, NIVELES.C.color)}${celda(f.porNivel.D, f.objetos, NIVELES.D.color)}
+        <td class="num">${f.medidos ? pct(f.sinUso, f.medidos) : '<span class="tenue">—</span>'}</td>
+        <td><span class="esf-barra"><span style="width:${(100 * f.max) / maxEsf}%"></span></span> ${rango(f.min, f.max)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+  $$('tr[data-paquete]', c).forEach((tr) => tr.addEventListener('click', () => {
+    Object.assign(filtros, { texto: '', decision: '', nivel: '', tipo: '', paquete: tr.dataset.paquete!, limite: 200 });
+    ($('.pestanas [data-p="objetos"]') as HTMLButtonElement).click();
+  }));
 }
 
 // ------------------------------------------------------------------ Duplicados

@@ -1,13 +1,29 @@
 import type { Decision, Destino, EstadoUso, Nivel } from '../tipos';
+import { EN } from '../informe/en';
 
 export const esc = (s: unknown) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-const nf = new Intl.NumberFormat('es-ES');
-const nf1 = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1, minimumFractionDigits: 0 });
-export const num = (n: number) => nf.format(Math.round(n));
-export const dec = (n: number) => nf1.format(n);
-export const pct = (n: number, total: number) => (total ? `${Math.round((100 * n) / total)} %` : '0 %');
+// Idioma de lo que se genera (la web es en español; el informe, el CSV y el resumen pueden salir en inglés)
+export type Idioma = 'es' | 'en';
+let IDIOMA: Idioma = 'es';
+export const idioma = () => IDIOMA;
+/** Ejecuta fn con el idioma indicado y vuelve al anterior */
+export function conIdioma<T>(l: Idioma, fn: () => T): T {
+  const antes = IDIOMA;
+  IDIOMA = l;
+  try { return fn(); } finally { IDIOMA = antes; }
+}
+/** Traduce un texto fijo de la interfaz (la clave es el texto en español) */
+export const tr = (es: string) => (IDIOMA === 'en' ? EN[es] ?? es : es);
+
+const formatos = {
+  es: { nf: new Intl.NumberFormat('es-ES'), nf1: new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1, minimumFractionDigits: 0 }), pct: ' %' },
+  en: { nf: new Intl.NumberFormat('en-GB'), nf1: new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1, minimumFractionDigits: 0 }), pct: '%' },
+};
+export const num = (n: number) => formatos[IDIOMA].nf.format(Math.round(n));
+export const dec = (n: number) => formatos[IDIOMA].nf1.format(n);
+export const pct = (n: number, total: number) => `${total ? Math.round((100 * n) / total) : 0}${formatos[IDIOMA].pct}`;
 /** Rango de jornadas redondeado a valores razonables (sin falsa precisión) */
 export const rango = (min: number, max: number) => {
   const r = (n: number) => (n < 10 ? dec(Math.round(n * 2) / 2) : num(n < 100 ? Math.round(n) : Math.round(n / 5) * 5));
@@ -18,6 +34,7 @@ export const DESTINOS: Record<Destino, { nombre: string; corto: string; nota: st
   s4op: { nombre: 'S/4HANA on-premise', corto: 'On-premise', nota: 'Conversión de un sistema ECC a S/4HANA en tu propia infraestructura. Cuentan las simplificaciones de S/4HANA y, como riesgo, el nivel de clean core.' },
   s4pce: { nombre: 'S/4HANA Cloud Private Edition', corto: 'Private Edition', nota: 'RISE with SAP. Como on-premise, con el nivel de clean core como criterio de calidad de las extensiones.' },
   s4pub: { nombre: 'S/4HANA Cloud Public Edition', corto: 'Public Edition', nota: 'Solo ABAP Cloud: APIs liberadas, sin SAP GUI ni acceso directo a tablas de SAP.' },
+  btp: { nombre: 'SAP BTP ABAP Environment', corto: 'BTP', nota: 'Extensión side-by-side: ABAP Cloud en BTP, sin las vistas ni las tablas de S/4HANA. Para decidir qué sacar del core.' },
 };
 
 export const DECISIONES: Record<Decision, { nombre: string; color: string; texto: string }> = {
@@ -42,7 +59,7 @@ export const TIPOS: Record<string, string> = {
   BDEF: 'Comportamiento RAP', TABL: 'Tabla', ENHO: 'Ampliación', ENHS: 'Punto de ampliación', TRAN: 'Transacción', SRVD: 'Definición de servicio',
   SRVB: 'Enlace de servicio', XSLT: 'Transformación', VIEW: 'Vista de diccionario', SSFO: 'Smart Form', SFPF: 'Formulario Adobe', SXCI: 'Implementación BAdI', DCLS: 'Control de acceso', TYPE: 'Grupo de tipos',
 };
-export const tipo = (t: string) => TIPOS[t] || t;
+export const tipo = (t: string) => tr(TIPOS[t] || t);
 
 export const CATEGORIAS: Record<string, string> = {
   s4: 'Simplificación S/4HANA', cloud: 'ABAP Cloud', release: 'Versión de ABAP', obsolete: 'Sintaxis obsoleta', perf: 'Rendimiento', security: 'Seguridad', quality: 'Buenas prácticas',

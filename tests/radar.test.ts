@@ -185,3 +185,40 @@ describe('duplicados, calendario y propuesta', async () => {
     expect(p.manuales.some((m) => /VBAK/.test(m.titulo) && /I_SALESDOCUMENT/.test(m.detalle))).toBe(true);
   });
 });
+
+describe('informe en inglés, guardar y comparar', async () => {
+  const { exportarAnalisis, leerAnalisis, reconstruir, comparar } = await import('../src/informe/guardar');
+  const { csvPlan } = await import('../src/informe/exportar');
+  const { motivoEn } = await import('../src/informe/en');
+  const { objetos } = leerRepositorio([
+    { ruta: 'src/zr_x.prog.abap', contenido: "REPORT zr_x.\nSELECT * FROM vbuk INTO TABLE lt WHERE vbeln = lv.\nUPDATE mara SET mstae = 'X' WHERE matnr = lv." },
+    { ruta: 'src/zr_y.prog.abap', contenido: 'REPORT zr_y.\nSELECT FROM i_product FIELDS product INTO TABLE @DATA(lt).' },
+  ], 'Z');
+  const uso = leerUso('OBJ_TYPE;OBJ_NAME;COUNTER\nPROG;ZR_X;10\nPROG;ZR_Y;0\n');
+  const a = evaluar('t', analizarBase(objetos, base, 's4op'), uso, opciones(), datos.meta);
+
+  it('guarda sin código, se vuelve a abrir y da el mismo resultado', () => {
+    const texto = exportarAnalisis(a);
+    expect(texto).not.toContain("mstae = 'X'");
+    expect(texto).not.toContain('INTO TABLE lt WHERE vbeln');
+    const b = leerAnalisis(texto);
+    const r = reconstruir(b);
+    const c = evaluar('t', r.bases, r.uso, b.opciones, datos.meta);
+    expect(c.resumen.porDecision).toEqual(a.resumen.porDecision);
+    expect(() => leerAnalisis('{"formato":"otro"}')).toThrow();
+  });
+
+  it('compara dos análisis', () => {
+    const pub = evaluar('t', analizarBase(objetos, base, 's4pub'), uso, opciones('s4pub'), datos.meta);
+    const cmp = comparar(pub, a);
+    expect(cmp.delta.objetos).toBe(0);
+    expect(cmp.delta.max).toBeGreaterThanOrEqual(0);
+  });
+
+  it('CSV y motivos en inglés', () => {
+    const csv = csvPlan(a, 'en');
+    expect(csv).toContain('Phase,Package,Type,Object,Decision');
+    expect(csv).toMatch(/Rebuild|Retire|Keep|Adapt/);
+    expect(motivoEn('3 punto(s) afectados por simplificaciones de S/4HANA.')).toBe('3 point(s) affected by S/4HANA simplifications.');
+  });
+});

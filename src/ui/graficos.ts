@@ -1,12 +1,14 @@
 // Gráficos en SVG generados a mano: sin librerías, se imprimen igual que se ven.
 import type { ResultadoObjeto } from '../tipos';
 import { FIN_ECC, type Calendario } from '../esfuerzo/calendario';
-import { DECISIONES, esc, num, pct } from './util';
+import { DECISIONES, esc, idioma, num, pct, tr } from './util';
 
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MESES_ES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MESES_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const mes = (i: number) => (idioma() === 'en' ? MESES_EN : MESES_ES)[i];
 export const fechaCorta = (s: string) => {
   const [a, m, d] = s.split('-').map(Number);
-  return `${d} ${MESES[m - 1]} ${a}`;
+  return `${d} ${mes(m - 1)} ${a}`;
 };
 
 /**
@@ -14,7 +16,7 @@ export const fechaCorta = (s: string) => {
  * y la línea del fin del mantenimiento estándar de ECC.
  */
 export function gantt(c: Calendario, ancho = 760): string {
-  if (!c.fases.length) return '<p class="tenue">No hay trabajo que planificar.</p>';
+  if (!c.fases.length) return `<p class="tenue">${tr('No hay trabajo que planificar.')}</p>`;
   const fila = 34;
   const m = { izq: 240, der: 20, arr: 26, aba: 28 };
   const alto = m.arr + c.fases.length * fila + m.aba;
@@ -30,12 +32,12 @@ export function gantt(c: Calendario, ancho = 760): string {
   d.setUTCMonth(Math.ceil((d.getUTCMonth() + 1) / 3) * 3);
   while (d.getTime() < t1) {
     const s = d.toISOString().slice(0, 10);
-    marcas.push(`<line x1="${x(s)}" x2="${x(s)}" y1="${m.arr - 6}" y2="${alto - m.aba}" class="rejilla"/><text x="${x(s)}" y="${m.arr - 10}" text-anchor="middle">${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}</text>`);
+    marcas.push(`<line x1="${x(s)}" x2="${x(s)}" y1="${m.arr - 6}" y2="${alto - m.aba}" class="rejilla"/><text x="${x(s)}" y="${m.arr - 10}" text-anchor="middle">${mes(d.getUTCMonth())} ${d.getUTCFullYear()}</text>`);
     d.setUTCMonth(d.getUTCMonth() + 3);
   }
   const barras = c.fases.map((f, i) => {
     const y = m.arr + i * fila + 8;
-    return `<text x="0" y="${y + 13}" class="titulo-eje">${f.fase}. ${esc(f.nombre)}</text>
+    return `<text x="0" y="${y + 13}" class="titulo-eje">${f.fase}. ${esc(tr(f.nombre))}</text>
       <rect x="${x(f.inicioMax)}" y="${y}" width="${Math.max(2, x(f.finMax) - x(f.inicioMax))}" height="18" class="pesimista"><title>Pesimista: ${fechaCorta(f.inicioMax)} a ${fechaCorta(f.finMax)}</title></rect>
       <rect x="${x(f.inicioMin)}" y="${y + 4}" width="${Math.max(2, x(f.finMin) - x(f.inicioMin))}" height="10" class="optimista"><title>Optimista: ${fechaCorta(f.inicioMin)} a ${fechaCorta(f.finMin)}</title></rect>`;
   }).join('');
@@ -45,7 +47,7 @@ export function gantt(c: Calendario, ancho = 760): string {
     ${marcas.join('')}
     ${barras}
     <line x1="${xf}" x2="${xf}" y1="${m.arr - 6}" y2="${alto - m.aba + 6}" class="limite"/>
-    <text x="${xf - 6}" y="${alto - 6}" text-anchor="end" class="etiqueta-zona">Fin del mantenimiento estándar de ECC 6.0</text>
+    <text x="${xf - 6}" y="${alto - 6}" text-anchor="end" class="etiqueta-zona">${tr('Fin del mantenimiento estándar de ECC 6.0')}</text>
   </svg>`;
 }
 
@@ -100,16 +102,16 @@ export function mapaRiesgo(rs: ResultadoObjeto[], ancho = 760, alto = 380): stri
   const yCrit = m.arr + h * 0.45;
   return `<svg class="mapa" viewBox="0 0 ${ancho} ${alto}" width="100%" role="img" aria-label="Mapa de riesgo">
     <rect x="${xCrit}" y="${m.arr}" width="${m.izq + w - xCrit}" height="${yCrit - m.arr}" class="zona-critica"/>
-    <text x="${m.izq + w - 6}" y="${m.arr + 14}" text-anchor="end" class="etiqueta-zona">Crítico: muy usado y difícil de cambiar</text>
+    <text x="${m.izq + w - 6}" y="${m.arr + 14}" text-anchor="end" class="etiqueta-zona">${tr('Crítico: muy usado y difícil de cambiar')}</text>
     <rect x="${m.izq}" y="${m.arr}" width="${franja}" height="${h}" class="franja"/>
-    <text x="${m.izq + franja / 2}" y="${m.arr + h + 16}" text-anchor="middle">No medido</text>
+    <text x="${m.izq + franja / 2}" y="${m.arr + h + 16}" text-anchor="middle">${tr('No medido')}</text>
     ${marcasX}
     <line x1="${m.izq}" x2="${m.izq + w}" y1="${m.arr + h}" y2="${m.arr + h}" class="eje"/>
     <line x1="${m.izq}" x2="${m.izq}" y1="${m.arr}" y2="${m.arr + h}" class="eje"/>
-    <text x="${m.izq + franja + (w - franja) / 2}" y="${alto - 6}" text-anchor="middle" class="titulo-eje">Ejecuciones en el periodo medido (escala logarítmica)</text>
-    <text transform="translate(14 ${m.arr + h / 2}) rotate(-90)" text-anchor="middle" class="titulo-eje">Complejidad del cambio</text>
-    <text x="${m.izq - 6}" y="${m.arr + 10}" text-anchor="end">Alta</text>
-    <text x="${m.izq - 6}" y="${m.arr + h}" text-anchor="end">Baja</text>
+    <text x="${m.izq + franja + (w - franja) / 2}" y="${alto - 6}" text-anchor="middle" class="titulo-eje">${tr('Ejecuciones en el periodo medido (escala logarítmica)')}</text>
+    <text transform="translate(14 ${m.arr + h / 2}) rotate(-90)" text-anchor="middle" class="titulo-eje">${tr('Complejidad del cambio')}</text>
+    <text x="${m.izq - 6}" y="${m.arr + 10}" text-anchor="end">${tr('Alta')}</text>
+    <text x="${m.izq - 6}" y="${m.arr + h}" text-anchor="end">${tr('Baja')}</text>
     ${puntos}
   </svg>`;
 }
@@ -118,7 +120,7 @@ export function mapaRiesgo(rs: ResultadoObjeto[], ancho = 760, alto = 380): stri
 export function barrasRango(filas: { nombre: string; min: number; max: number; nota?: string }[], unidad: string): string {
   const max = Math.max(1, ...filas.map((f) => f.max));
   return `<div class="barras">${filas
-    .map((f) => `<div class="barra-fila"><span class="barra-nombre">${esc(f.nombre)}</span><span class="barra-pista"><span class="barra-min" style="width:${(100 * f.min) / max}%"></span><span class="barra-max" style="left:${(100 * f.min) / max}%;width:${(100 * (f.max - f.min)) / max}%"></span></span><span class="barra-valor">${num(f.min)}–${num(f.max)} ${unidad}${f.nota ? ` <span class="tenue">${esc(f.nota)}</span>` : ''}</span></div>`)
+    .map((f) => `<div class="barra-fila"><span class="barra-nombre">${esc(f.nombre)}</span><span class="barra-pista"><span class="barra-min" style="width:${(100 * f.min) / max}%"></span><span class="barra-max" style="left:${(100 * f.min) / max}%;width:${(100 * (f.max - f.min)) / max}%"></span></span><span class="barra-valor">${num(f.min)}–${num(f.max)} ${tr(unidad)}${f.nota ? ` <span class="tenue">${esc(f.nota)}</span>` : ''}</span></div>`)
     .join('')}</div>`;
 }
 

@@ -272,3 +272,18 @@ input:focus-visible, select:focus-visible, button:focus-visible, .soltar:focus-w
 .etiqueta { font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--tenue); margin-left: 6px; }
 .gantt { max-width: 900px; }
 .equipo input, .equipo select { height: 34px; }
+
+/* ---------- paquetes */
+.calor-tabla td.calor { color: var(--tinta); }
+.calor-tabla tbody tr { cursor: pointer; }
+.esf-barra { display: inline-block; width: 90px; height: 8px; background: #eef1f3; vertical-align: 0; margin-right: 6px; }
+.esf-barra span { display: block; height: 100%; background: var(--tinta); }
+
+/* ---------- guardar y comparar */
+.acciones-sec { display: flex; flex-wrap: wrap; gap: 6px 20px; align-items: center; font-size: 14px; margin: -4px 0 6px; }
+.acciones-sec label.enlace, .abrir-guardado label.enlace { cursor: pointer; }
+.kpis.compacto { grid-template-columns: repeat(5, 1fr); }
+.kpis.compacto b { font-size: 22px; }
+.comparacion { margin-bottom: 16px; }
+.abrir-guardado { font-size: 14px; margin: 14px 0 0; }
+@media (max-width: 980px) { .kpis.compacto { grid-template-columns: 1fr 1fr; } }

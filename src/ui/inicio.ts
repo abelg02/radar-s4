@@ -1,7 +1,7 @@
 // Pantalla de inicio: entrada del código, del uso y del destino, y explicación de la metodología.
 import type { Destino } from '../tipos';
 import type { Estado } from '../main';
-import { analizarArchivos, cargarDatosSap, cargarUsoTexto, estado as estadoApp, guardarOpciones, progresoCarga, quitarUso } from '../main';
+import { abrirAnalisis, analizarArchivos, cargarDatosSap, cargarUsoTexto, estado as estadoApp, guardarOpciones, progresoCarga, quitarUso } from '../main';
 import { leerFicheros, leerGitHub, leerZip } from '../entrada/cargar';
 import { PLANTILLA_USO } from '../entrada/uso';
 import { $, $$, DECISIONES, DESTINOS, NIVELES, ORDEN_DECISION, descargar, esc, num } from './util';
@@ -88,6 +88,8 @@ export function pintarInicio(estado: Estado, error?: string) {
       </div>
     </div>
 
+    <p class="abrir-guardado"><label class="enlace">Abrir un análisis guardado (.json)<input type="file" id="f-guardado" accept=".json,application/json" hidden></label> <span class="tenue">Los análisis se guardan sin el código: se pueden compartir con el equipo.</span> <span id="err-guardado" class="error"></span></p>
+
     <p class="datos-sap" id="datos-sap">Cargando la lista oficial de SAP…</p>
 
     <section class="explicacion" id="como-funciona">
@@ -156,6 +158,11 @@ export function pintarInicio(estado: Estado, error?: string) {
   $('#quitar-uso')?.addEventListener('click', () => { quitarUso(); pintarUso(estado, []); });
 
   $('#probar-ejemplo').addEventListener('click', probarEjemplo);
+  ($('#f-guardado') as HTMLInputElement).addEventListener('change', async (e) => {
+    const f = (e.target as HTMLInputElement).files?.[0];
+    if (!f) return;
+    try { abrirAnalisis(await f.text()); } catch (err) { $('#err-guardado').textContent = (err as Error).message; }
+  });
 
   cargarDatosSap().then((d) => {
     const el = document.getElementById('datos-sap');
